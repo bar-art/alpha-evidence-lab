@@ -5,6 +5,7 @@
 """
 
 import json
+import math
 import os
 import urllib.error
 import urllib.request
@@ -29,6 +30,57 @@ class LlmBudgetError(ValueError):
 
 class ProviderFlagged(ValueError):
     """服务商内容过滤器的误判（HTTP 400 flagged）；同一请求重发通常可通过。"""
+
+
+Pricing = dict[str, float]
+
+
+def valid_cost(value: Any) -> float | None:
+    """usage.cost 的合法值；缺失、非数值、负数、NaN/Inf 返回 None（未知，不当成 0）。"""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    cost = float(value)
+    return cost if math.isfinite(cost) and cost >= 0 else None
+
+
+def http_error_category(code: int, flagged: bool) -> str:
+    if flagged:
+        return "content_filter"
+    if code in {401, 403}:
+        return "authentication"
+    if code == 402:
+        return "insufficient_credits"
+    if code in {408, 429}:
+        return "rate_limit_or_timeout"
+    if code >= 500:
+        return "provider_error"
+    return "request_rejected"
+
+
+def fetch_pricing(model: str, provider: str | None) -> Pricing | None:
+    """从 OpenRouter 公开端点目录读取单价（美元/token）。指定端点时取该端点，否则取各端点最高价。
+
+    读取失败返回 None：此时费用上限只能作为软阈值，报告会写明。
+    """
+    url = f"https://openrouter.ai/api/v1/models/{model}/endpoints"
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            endpoints = json.loads(response.read())["data"]["endpoints"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    matches = [
+        item
+        for item in endpoints
+        if provider is None
+        or item.get("tag") == provider
+        or str(item.get("provider_name", "")).lower() == provider.lower()
+    ]
+    try:
+        prompt = max(float(item["pricing"]["prompt"]) for item in matches)
+        completion = max(float(item["pricing"]["completion"]) for item in matches)
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {"prompt": prompt, "completion": completion}
 
 
 def schema_problem(output: dict[str, Any], schema: dict[str, Any]) -> str:
@@ -61,10 +113,15 @@ def http_transport(body: dict[str, Any], api_key: str) -> dict[str, Any]:
         with urllib.request.urlopen(request, timeout=120) as response:
             return dict(json.loads(response.read()))
     except urllib.error.HTTPError as error:
-        # 只报告状态码和服务端错误摘要；请求头（含密钥）不进入异常信息。
-        detail = error.read().decode(errors="replace")[:200]
-        kind = ProviderFlagged if error.code == 400 and "flagged" in detail else ValueError
-        raise kind(f"OpenRouter HTTP {error.code}：{detail}") from None
+        # 只报告状态码和安全分类：服务商错误正文可能回显密钥或提示词，不进入异常、日志或缓存。
+        text = error.read().decode(errors="replace")
+        flagged = error.code == 400 and "flagged" in text
+        request_id = error.headers.get("x-request-id") if error.headers else None
+        kind = ProviderFlagged if flagged else ValueError
+        suffix = f"，请求ID {request_id}" if request_id else ""
+        raise kind(
+            f"OpenRouter HTTP {error.code}（{http_error_category(error.code, flagged)}）{suffix}"
+        ) from None
 
 
 class OpenRouterClient:
@@ -75,11 +132,18 @@ class OpenRouterClient:
         seed: int,
         api_key: str | None = None,
         transport: Transport = http_transport,
+        pricing: Pricing | None = None,
     ) -> None:
         self.settings, self.cache_path, self.seed = settings, cache_path, seed
+        # 有可信单价时，每次发送前按最坏情况预留费用（硬上限）；否则只能作为软阈值。
+        self.pricing = pricing
+        self.unknown_cost_calls = 0
+        self.unknown_cost_reserved = 0.0
+        self.budget_exceeded = False
         self._api_key = api_key if api_key is not None else os.environ.get("OPENROUTER_API_KEY", "")
         self.transport = transport
         self.calls = self.cache_hits = self.repairs = self.flag_retries = 0
+        self.cached_source_cost = 0.0
         self.cost_usd = 0.0
         self.prompt_tokens = self.completion_tokens = 0
         self._cache: dict[str, dict[str, Any]] = {}
@@ -101,6 +165,8 @@ class OpenRouterClient:
         cached = self._cache.get(key)
         if cached is not None and not schema_problem(cached["output"], schema):
             self.cache_hits += 1
+            # 缓存命中不产生新费用，但原始调用的费用仍单独报告。
+            self.cached_source_cost += valid_cost((cached.get("usage") or {}).get("cost")) or 0.0
             return dict(cached["output"])
         for repair in range(MAX_REPAIRS + 1):
             content, response = self._send(body)
@@ -139,6 +205,12 @@ class OpenRouterClient:
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         with self.cache_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        if self.budget_exceeded:
+            # 已付费的响应已保存，但实验不再完整：停止，不把它当作预算内结果使用。
+            raise LlmBudgetError(
+                f"费用 ${self.committed_cost():.6f} 超过上限 ${self.settings.max_cost_usd}"
+                "（budget_exceeded）；已发生的调用已保存，研究不完整"
+            )
         return output
 
     def _body(
@@ -165,14 +237,39 @@ class OpenRouterClient:
             "usage": {"include": True},
         }
 
+    def committed_cost(self) -> float:
+        """已结算费用加上费用未知调用的预留上界。"""
+        return self.cost_usd + self.unknown_cost_reserved
+
+    def reservation(self, body: dict[str, Any]) -> float | None:
+        """单次请求最坏费用：请求字符数（token数不超过字符数）× 输入单价 + 输出上限 × 输出单价。"""
+        if self.pricing is None:
+            return None
+        prompt_chars = len(json.dumps(body["messages"], ensure_ascii=False)) + len(
+            json.dumps(body.get("response_format", {}), ensure_ascii=False)
+        )
+        return (
+            prompt_chars * self.pricing["prompt"]
+            + int(body.get("max_tokens") or 0) * (self.pricing["completion"])
+        )
+
     def _send(self, body: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-        if self.calls >= self.settings.max_calls:
-            raise LlmBudgetError(f"大模型调用次数达到上限 {self.settings.max_calls}，停止研究")
-        if self.cost_usd >= self.settings.max_cost_usd:
-            raise LlmBudgetError(f"大模型费用达到上限 ${self.settings.max_cost_usd}，停止研究")
+        if self.budget_exceeded:
+            raise LlmBudgetError("已超过费用上限（budget_exceeded），不再发送付费请求")
         if not self._api_key:
             raise ValueError("缺少 OPENROUTER_API_KEY 环境变量；不会改用规则结果")
+        reserve = self.reservation(body)
         for attempt in range(MAX_FLAG_RETRIES + 1):
+            if self.calls >= self.settings.max_calls:
+                raise LlmBudgetError(f"大模型调用次数达到上限 {self.settings.max_calls}，停止研究")
+            if reserve is not None:
+                if self.committed_cost() + reserve > self.settings.max_cost_usd:
+                    raise LlmBudgetError(
+                        f"预留最坏费用 ${reserve:.6f} 后将超过上限 ${self.settings.max_cost_usd}，"
+                        "请求未发送"
+                    )
+            elif self.committed_cost() >= self.settings.max_cost_usd:
+                raise LlmBudgetError(f"大模型费用达到上限 ${self.settings.max_cost_usd}，停止研究")
             self.calls += 1
             try:
                 response = self.transport(body, self._api_key)
@@ -180,10 +277,21 @@ class OpenRouterClient:
             except ProviderFlagged:
                 # 过滤器误判：原样重发，次数计入调用；连续被拦截则停止研究。
                 self.flag_retries += 1
-                if attempt == MAX_FLAG_RETRIES or self.calls >= self.settings.max_calls:
+                if attempt == MAX_FLAG_RETRIES:
                     raise
         usage = response.get("usage") or {}
-        self.cost_usd += float(usage.get("cost") or 0.0)
+        cost = valid_cost(usage.get("cost"))
+        if cost is None:
+            # 费用未知：不当成 0。有可信上界时按预留额计入；没有则无法保证上限，停止。
+            self.unknown_cost_calls += 1
+            if reserve is None:
+                self.budget_exceeded = True
+            else:
+                self.unknown_cost_reserved += reserve
+        else:
+            self.cost_usd += cost
+        if self.committed_cost() > self.settings.max_cost_usd:
+            self.budget_exceeded = True
         self.prompt_tokens += int(usage.get("prompt_tokens") or 0)
         self.completion_tokens += int(usage.get("completion_tokens") or 0)
         try:
@@ -212,4 +320,11 @@ class OpenRouterClient:
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
             "cost_usd": round(self.cost_usd, 6),
+            "unknown_cost_calls": self.unknown_cost_calls,
+            "unknown_cost_reserved_usd": round(self.unknown_cost_reserved, 6),
+            "cached_source_cost_usd": round(self.cached_source_cost, 6),
+            "max_cost_usd": self.settings.max_cost_usd,
+            "budget_mode": "hard_reservation" if self.pricing else "soft_threshold",
+            "pricing_usd_per_token": self.pricing,
+            "budget_exceeded": self.budget_exceeded,
         }

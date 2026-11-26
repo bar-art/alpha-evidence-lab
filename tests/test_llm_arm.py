@@ -8,6 +8,7 @@ from alpha_evidence_lab.llm import LlmBudgetError, OpenRouterClient
 from alpha_evidence_lab.models import LlmSettings, StudyPlan
 from alpha_evidence_lab.study import run_study
 
+PRICING = {"prompt": 1e-7, "completion": 4e-7}
 SETTINGS = LlmSettings(
     model="openai/gpt-oss-120b",
     release_date=date(2025, 8, 5),
@@ -59,6 +60,9 @@ def test_study_with_llm_arm_is_audited_and_anonymised(tmp_path):
         result["registration"]["arms"] == list(plan.arms)
         or result["registration"]["arms"] == plan.arms
     )
+    call_plan = result["registration"]["llm_call_plan"]
+    assert call_plan["logical_proposals"] == plan.budget * plan.episodes * len(plan.data_seeds)
+    assert call_plan["worst_case_api_calls"] == call_plan["logical_proposals"] * 9
     assert result["gate"]["family_size"] == 3
     assert {c["arm"] for c in result["gate"]["comparisons"]} == {"random", "memory", "llm"}
     llm_trials = [t for t in result["trials"] if t["arm"] == "llm"]
@@ -140,7 +144,7 @@ def test_budget_limits_and_missing_key_stop_the_study(tmp_path):
 
 def test_malformed_model_output_is_rejected(tmp_path):
     def broken(body, api_key):
-        return {"choices": [{"message": {"content": "not json"}}], "usage": {}}
+        return {"choices": [{"message": {"content": "not json"}}], "usage": {"cost": 0.0001}}
 
     client = OpenRouterClient(SETTINGS, tmp_path / "f.jsonl", 1, "test-key", broken)
     with pytest.raises(ValueError, match="JSON"):
@@ -157,7 +161,11 @@ def test_cli_verify_accepts_llm_study(tmp_path, monkeypatch):
     monkeypatch.setattr(
         llm.OpenRouterClient.__init__,
         "__defaults__",
-        (None, fake_transport(sent)),
+        (None, fake_transport(sent), None),
+    )
+    # 测试不联网：价格目录用固定值替身。
+    monkeypatch.setattr(
+        "alpha_evidence_lab.study.fetch_pricing", lambda model, provider: dict(PRICING)
     )
     config = tmp_path / "plan.json"
     config.write_text(plan.model_dump_json())
@@ -177,7 +185,10 @@ def test_format_repair_does_not_consume_search_budget(tmp_path):
         if state["n"] == 1:
             sent.append(body)
             bad = {"candidate": "ma_2_8", "evidence_ids": []}
-            return {"choices": [{"message": {"content": json.dumps(bad)}}], "usage": {}}
+            return {
+                "choices": [{"message": {"content": json.dumps(bad)}}],
+                "usage": {"cost": 0.0001},
+            }
         return good(body, api_key)
 
     plan = plan_with_llm()
@@ -235,3 +246,109 @@ def test_content_filter_false_positive_is_retried_then_stops(tmp_path):
     with pytest.raises(ProviderFlagged):
         stubborn.complete("s", context, schema, "p")
     assert stubborn.calls == 3
+
+
+SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string"}},
+    "required": ["answer"],
+}
+
+
+def reply(cost):
+    return lambda body, key: {
+        "choices": [{"message": {"content": '{"answer": "ok"}'}}],
+        "usage": {"cost": cost},
+    }
+
+
+def test_overspend_is_saved_but_marks_study_incomplete(tmp_path):
+    """审查反例：上限0.01，单次返回0.02。响应要保存，但不能作为预算内结果被接受。"""
+    from alpha_evidence_lab.llm import LlmBudgetError
+
+    settings = SETTINGS.model_copy(update={"max_cost_usd": 0.01})
+    cache = tmp_path / "c.jsonl"
+    client = OpenRouterClient(settings, cache, 1, "test-key", reply(0.02))
+    with pytest.raises(LlmBudgetError, match="budget_exceeded"):
+        client.complete("s", {"q": 1}, SCHEMA, "x")
+    usage = client.usage()
+    assert usage["budget_exceeded"] and usage["cost_usd"] == 0.02
+    assert usage["budget_mode"] == "soft_threshold"
+    assert len(cache.read_text().splitlines()) == 1  # 已付费响应没有丢弃
+    with pytest.raises(LlmBudgetError):  # 之后不再发送付费请求
+        client.complete("s", {"q": 2}, SCHEMA, "x")
+    assert client.calls == 1
+
+
+def test_reservation_blocks_requests_that_could_exceed_cap(tmp_path):
+    from alpha_evidence_lab.llm import LlmBudgetError
+
+    pricing = {"prompt": 1e-6, "completion": 1e-5}
+    settings = SETTINGS.model_copy(update={"max_cost_usd": 0.03})
+    client = OpenRouterClient(settings, tmp_path / "r.jsonl", 1, "test-key", reply(0.001), pricing)
+    body = client._body([{"role": "user", "content": "x"}], SCHEMA, "x")
+    reserve = client.reservation(body)
+    assert reserve is not None and reserve >= 2000 * 1e-5  # 输出上限按最坏情况计入
+    client.complete("s", {"q": 1}, SCHEMA, "x")
+    assert client.usage()["budget_mode"] == "hard_reservation"
+    tight = OpenRouterClient(
+        SETTINGS.model_copy(update={"max_cost_usd": reserve / 2}),
+        tmp_path / "t.jsonl",
+        1,
+        "test-key",
+        reply(0.0),
+        pricing,
+    )
+    with pytest.raises(LlmBudgetError, match="未发送"):
+        tight.complete("s", {"q": 1}, SCHEMA, "x")
+    assert tight.calls == 0
+
+
+@pytest.mark.parametrize("cost", [None, -1.0, float("nan"), float("inf"), "0.01", True])
+def test_unknown_cost_is_not_treated_as_zero(tmp_path, cost):
+    from alpha_evidence_lab.llm import LlmBudgetError
+
+    usage = {} if cost is None else {"cost": cost}
+    transport = lambda body, key: {  # noqa: E731
+        "choices": [{"message": {"content": '{"answer": "ok"}'}}],
+        "usage": usage,
+    }
+    priced = OpenRouterClient(SETTINGS, tmp_path / "p.jsonl", 1, "k", transport, PRICING)
+    priced.complete("s", {"q": 1}, SCHEMA, "x")
+    assert priced.unknown_cost_calls == 1 and priced.committed_cost() > 0
+    unpriced = OpenRouterClient(SETTINGS, tmp_path / "u.jsonl", 1, "k", transport)
+    with pytest.raises(LlmBudgetError):
+        unpriced.complete("s", {"q": 1}, SCHEMA, "x")
+
+
+def test_cache_hit_reports_source_cost_without_new_spend(tmp_path):
+    cache = tmp_path / "h.jsonl"
+    OpenRouterClient(SETTINGS, cache, 1, "k", reply(0.003), PRICING).complete("s", {}, SCHEMA, "x")
+    again = OpenRouterClient(SETTINGS, cache, 1, "k", reply(0.003), PRICING)
+    again.complete("s", {}, SCHEMA, "x")
+    assert again.calls == 0 and again.cost_usd == 0
+    assert again.usage()["cached_source_cost_usd"] == 0.003
+
+
+def test_http_error_body_never_echoed(monkeypatch):
+    import io
+    import urllib.error
+
+    from alpha_evidence_lab import llm
+
+    secret = "sk-or-v1-SECRET-echoed-by-provider"
+
+    def fail(request, timeout):
+        raise urllib.error.HTTPError(
+            "https://openrouter.ai",
+            401,
+            "denied",
+            {"x-request-id": "req-1"},
+            io.BytesIO(f'{{"error": "bad key {secret}"}}'.encode()),
+        )
+
+    monkeypatch.setattr(llm.urllib.request, "urlopen", fail)
+    with pytest.raises(ValueError) as caught:
+        llm.http_transport({"messages": []}, secret)
+    assert secret not in str(caught.value) and "authentication" in str(caught.value)
+    assert "req-1" in str(caught.value)

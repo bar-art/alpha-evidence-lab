@@ -9,7 +9,13 @@ from .data import PricePath, synthetic_paths
 from .evaluator import evaluate
 from .inference import EXACT_MAX, MC_DRAWS, paired_gate
 from .ledger import Ledger
-from .llm import OpenRouterClient
+from .llm import (
+    MAX_FLAG_RETRIES,
+    MAX_OUTPUT_TOKENS,
+    MAX_REPAIRS,
+    OpenRouterClient,
+    fetch_pricing,
+)
 from .models import LLM_ARM, StudyPlan, digest
 from .search import EvidenceAgent, Memory, ResearchTools, visible_memory
 
@@ -64,6 +70,18 @@ def run_study(
         "minimum_clusters": 6,
         "kind": "local_preregistration_not_public_timestamp",
     }
+    if plan.llm:
+        # 调用预估：格式修复与过滤器重发是额外调用，不改变研究预算，也不自动提高费用上限。
+        proposals = plan.budget * plan.episodes * len(paths)
+        registration["llm_call_plan"] = {
+            "logical_proposals": proposals,
+            "max_format_repairs_per_proposal": MAX_REPAIRS,
+            "max_filter_retries_per_request": MAX_FLAG_RETRIES,
+            "worst_case_api_calls": proposals * (MAX_REPAIRS + 1) * (MAX_FLAG_RETRIES + 1),
+            "max_calls": plan.llm.max_calls,
+            "max_output_tokens_per_call": MAX_OUTPUT_TOKENS,
+            "max_cost_usd": plan.llm.max_cost_usd,
+        }
     study_id = digest(registration)[:20]
     output.mkdir(parents=True, exist_ok=True)
     from .models import canonical
@@ -80,7 +98,10 @@ def run_study(
     if plan.llm and llm_client is None:
         # 缓存放在输出目录之外时，可在新目录中免费重跑同一研究。
         llm_client = OpenRouterClient(
-            plan.llm, llm_cache or output / "llm_cache.jsonl", seed=plan.seed
+            plan.llm,
+            llm_cache or output / "llm_cache.jsonl",
+            seed=plan.seed,
+            pricing=fetch_pricing(plan.llm.model, plan.llm.provider),
         )
     rows, trials, batches = [], [], []
     memories: list[Memory] = []
