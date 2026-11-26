@@ -151,6 +151,7 @@ def portfolio_metrics(
     *,
     max_exit_delay: int = 10,
     boundary: int | None = None,
+    _labels: tuple[dict[str, np.ndarray], ...] | None = None,
 ) -> dict[str, Any]:
     """Unit long + unit short, actual per-security exits; no new basket while capital is held.
 
@@ -160,15 +161,18 @@ def portfolio_metrics(
     from .evaluator import stamp_duty_rate
 
     limit = min(boundary if boundary is not None else len(panel.dates), len(panel.dates))
-    sides = [
-        exit_labels(panel, horizon, max_exit_delay=max_exit_delay, boundary=limit, short=x)
-        for x in (False, True)
-    ]
+    sides = _labels or tuple(
+        [
+            exit_labels(panel, horizon, max_exit_delay=max_exit_delay, boundary=limit, short=x)
+            for x in (False, True)
+        ]
+    )
     cost = cost_bps / 10000
     nav, net = [1.0], []
     exclusions = delayed = unresolved = unknown = 0
     available = start + 1
     opening, close = panel.fields["open"], panel.fields["close"]
+    tax_rates = np.array([stamp_duty_rate(stamp_duty, d.astype(object)) for d in panel.dates])
     for t in range(start, stop, horizon):
         entry, nominal = t + 1, t + 1 + horizon
         if nominal >= limit or entry < available:
@@ -198,6 +202,10 @@ def portfolio_metrics(
         entry_fee = 2 * cost + stamp_duty_rate(stamp_duty, panel.dates[entry].astype(object))
         nav.append(base * (1 - entry_fee))
         carried = {sign: opening[entry, names].copy() for _, names, sign in selected}
+        rates_by_side = {
+            sign: tax_rates[labels["exit_day"][t, names]] if sign == 1 else np.zeros(len(names))
+            for labels, names, sign in selected
+        }
         for day in range(entry + 1, last + 1):
             value = 1 - entry_fee
             for labels, names, sign in selected:
@@ -209,14 +217,7 @@ def portfolio_metrics(
                 ratio = mark / opening[entry, names]
                 value += sign * float(np.mean(ratio - 1))
                 closed = (exits <= day) & ~labels["exit_unresolved"][t, names]
-                rates = np.array(
-                    [
-                        stamp_duty_rate(stamp_duty, panel.dates[e].astype(object))
-                        if sign == 1
-                        else 0
-                        for e in exits
-                    ]
-                )
+                rates = rates_by_side[sign]
                 value -= float(np.mean(np.where(closed, ratio * (cost + rates), 0)))
             if not np.isfinite(value) or value <= 0:
                 raise ValueError("Missing valuation or nonpositive long-short NAV")
@@ -251,6 +252,7 @@ def evaluate_factor(
     stamp_duty_schedule: tuple[tuple[date, float], ...] = (),
     minimum: int = 30,
     max_exit_delay: int = 10,
+    _labels: tuple[dict[str, np.ndarray], ...] | None = None,
 ) -> dict[str, Any]:
     from .factor_dsl import evaluate
 
@@ -271,7 +273,11 @@ def evaluate_factor(
     if coverage < 0.7:
         raise ValueError(f"Factor coverage below 70%: {coverage:.4f}")
     boundary = min(label_stop if label_stop is not None else len(panel.dates), len(panel.dates))
-    labels = exit_labels(panel, horizon, max_exit_delay=max_exit_delay, boundary=boundary)
+    sides = _labels or tuple(
+        exit_labels(panel, horizon, max_exit_delay=max_exit_delay, boundary=boundary, short=x)
+        for x in (False, True)
+    )
+    labels = sides[0]
     eligible = labels["eligible"]
     ic = rank_ic(values, labels["returns"], eligible, minimum)
     # Unknown labels must not remove individual losses from a day's correlation.
@@ -291,6 +297,7 @@ def evaluate_factor(
         minimum,
         max_exit_delay=max_exit_delay,
         boundary=boundary,
+        _labels=sides,
     )
     exclusions = {
         key: int(labels[key][start:stop].sum())

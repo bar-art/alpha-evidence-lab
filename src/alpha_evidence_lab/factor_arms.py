@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from .factor_dsl import Factor, FactorError, parse
-from .factor_eval import evaluate_factor
+from .factor_eval import evaluate_factor, exit_labels
 from .ledger import Ledger
 from .llm import OpenRouterClient
 from .models import digest
@@ -170,6 +170,10 @@ def search_arm(
 ) -> dict[str, Any]:
     if arm not in {"library", "random", "llm"} or (arm == "llm" and client is None):
         raise ValueError("Unknown factor method or missing LLM client")
+    labels = tuple(
+        exit_labels(development, horizon, max_exit_delay=max_exit_delay, short=short)
+        for short in (False, True)
+    )
     rng = np.random.default_rng(seed)
     seen: set[str] = set()
     aliases = {f"e{i + 1}": row for i, row in enumerate(memories)}
@@ -291,9 +295,8 @@ def search_arm(
                 stamp_duty_schedule=stamp_duty_schedule,
                 minimum=minimum,
                 max_exit_delay=max_exit_delay,
+                _labels=labels,
             )
-            if metrics.get("return", 0) is None:
-                raise FactorError("Selected basket has boundary-unknown exit or no complete basket")
             if metrics["icir"] is None:
                 raise FactorError("ICIR undefined: insufficient non-overlapping IC variation")
             score = float(metrics["icir"])

@@ -181,3 +181,36 @@ def test_scoring_counters_exclude_warmup_and_missing_ic_is_invalid():
     p.suspended[:] = True
     with pytest.raises(ValueError, match="coverage"):
         evaluate_factor(p, parse("close"), 5, 15, minimum=3)
+
+
+def test_precomputed_exit_labels_match_uncached_and_actual_exit_tax():
+    from datetime import date
+
+    from alpha_evidence_lab.factor_dsl import parse
+    from alpha_evidence_lab.factor_eval import evaluate_factor, exit_labels, portfolio_metrics
+
+    p = panel(days=25, stocks=5)
+    labels = tuple(exit_labels(p, 2, short=s) for s in (False, True))
+    args = (p, parse("cs_rank(close)"), 5, 15)
+    assert evaluate_factor(*args, horizon=2, minimum=3) == evaluate_factor(
+        *args, horizon=2, minimum=3, _labels=labels
+    )
+    for field in p.fields.values():
+        field[:] = 10
+    p.down_limit[3, 4] = 10
+    p.fields["open"][4:, 4] = 8
+    values = np.broadcast_to(np.arange(5.0), (25, 5))
+    eligible = exit_labels(p, 2)["eligible"]
+    result = portfolio_metrics(
+        p,
+        values,
+        eligible,
+        0,
+        1,
+        2,
+        0,
+        ((date(2024, 1, 1), 10.0), (date(2024, 1, 5), 5.0)),
+        minimum=3,
+    )
+    # Short-entry tax .001; actual long exit Jan5 at .8 notional taxed .0004.
+    assert result["return"] == pytest.approx(-0.2 - 0.001 - 0.0004)

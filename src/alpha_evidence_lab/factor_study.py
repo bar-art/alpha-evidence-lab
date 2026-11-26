@@ -95,7 +95,8 @@ def run_factor_study(
         "arms": plan.arms,
         "episodes": schedule,
         "classic_library": CLASSIC_EXPRESSIONS,
-        "selection_score": "development ICIR; max(score,id) tie break",
+        "selection_score": "development ICIR; max(score,id) tie break; "
+        "unknown basket returns remain missing, do not invalidate finite ICIR",
         "random_grammar": {
             "depth_max": plan.max_depth,
             "nodes_max": plan.max_nodes,
