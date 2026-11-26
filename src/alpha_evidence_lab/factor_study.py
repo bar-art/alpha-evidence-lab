@@ -108,11 +108,10 @@ def run_factor_study(
             "test_start strictly after confirm_start; primary gate uses confirmation only"
         ),
         "boundary_rule": (
-            "label exit index strictly before label_stop; test labels never leave the block"
+            "exits/marks strictly before label_stop; "
+            "truncated delay budget unknown; no outside reads"
         ),
-        "portfolio": (
-            "long 1 + short 1, gross 2, open marks, conditional on future exit eligibility"
-        ),
+        "portfolio": ("long 1 + short 1, gross 2, open marks, side-specific delayed exits"),
         "cost_rule": "entry and exit notional costs on both legs; tax on short entry and long exit",
         "kind": "local_preregistration_not_public_timestamp",
     }
@@ -155,6 +154,7 @@ def run_factor_study(
                     memories=memories[arm],
                     client=client if arm == "llm" else None,
                     minimum=plan.minimum_symbols,
+                    max_exit_delay=plan.max_exit_delay,
                 )
                 winners[arm] = winner["candidate"]
                 trials.extend(
@@ -182,8 +182,9 @@ def run_factor_study(
                         cost_bps=plan.cost_bps,
                         stamp_duty_schedule=plan.stamp_duty_schedule,
                         minimum=plan.minimum_symbols,
+                        max_exit_delay=plan.max_exit_delay,
                     )
-                    status = "ok"
+                    status = "ok" if metrics["return"] is not None else "failed"
                 except ValueError as error:
                     metrics = {"return": None, "drawdown": None, "error": str(error)[:200]}
                     status = "failed"
@@ -241,8 +242,8 @@ def run_factor_study(
         "llm_usage": client.usage() if plan.llm and client else None,
         "limitations": [
             (
-                "Future exit eligibility filters outcomes: these "
-                "are conditional diagnostics, not executable returns."
+                "Limit-blocked exits "
+                "are retained via delayed exits; unresolved exits use last observed close."
             ),
             (
                 "Unit long and unit short imply gross exposure 2; "

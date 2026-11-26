@@ -120,6 +120,7 @@ class Hypothesis(Contract):
 
 
 class FactorPlan(Contract):
+    max_exit_delay: int = Field(default=10, ge=0, le=30)
     question: str = (
         "At equal trial budgets, do LLM price-volume factors "
         "outperform fixed-library and random proposals out of sample?"

@@ -31,14 +31,15 @@ def test_forward_timing_and_masks():
     p = panel()
     r, valid, count = forward_returns(p, 2)
     assert r[0, 0] == pytest.approx(p.fields["open"][3, 0] / p.fields["open"][1, 0] - 1)
-    assert not valid[-3:].any()
+    assert np.isnan(r[-3:]).all()  # entry eligibility survives unknown future exits
     p.up_limit[1, 0] = p.fields["open"][1, 0]
     p.down_limit[3, 1] = p.fields["open"][3, 1]
     p.suspended[1, 2] = True
     p.up_limit[1, 3] = np.nan
     r, valid, count = forward_returns(p, 2)
-    assert not valid[0, :4].any() and valid[0, 4]
-    assert count["entry_limit_up"] > 0 and count["exit_limit_down"] > 0
+    assert not valid[0, [0, 2, 3]].any() and valid[0, 1] and valid[0, 4]
+    assert r[0, 1] == pytest.approx(p.fields["open"][4, 1] / p.fields["open"][1, 1] - 1)
+    assert count["entry_limit_up"] > 0
     assert count["entry_unobserved"] > 0 and count["unknown_limits"] > 0
     p.limit_exempt[:, :] = True
     assert forward_returns(p, 2)[1][0, 0]
@@ -107,3 +108,58 @@ def test_assessment_no_test_leak_and_tail_is_fenced():
     assert first["portfolio_periods"] == 5
     with pytest.raises(ValueError, match="coverage"):
         evaluate_factor(p, parse("ts_mean(close, 120)"), 3, 13, horizon=2, minimum=3)
+
+
+def test_delayed_long_short_and_unresolved_losses():
+    from alpha_evidence_lab.factor_eval import exit_labels, portfolio_metrics
+
+    p = panel(days=20, stocks=5)
+    for v in p.fields.values():
+        v[:] = 10
+    p.fields["open"][3, 4] = 8
+    p.down_limit[3, 4] = 8
+    p.fields["open"][4:, 4] = 7
+    labels = exit_labels(p, 2, max_exit_delay=2)
+    assert labels["eligible"][0, 4]
+    assert labels["exit_day"][0, 4] == 4
+    assert labels["returns"][0, 4] == pytest.approx(-0.3)
+    p.fields["open"][3, 0] = 12
+    p.up_limit[3, 0] = 12
+    p.fields["open"][4:, 0] = 13
+    short = exit_labels(p, 2, max_exit_delay=2, short=True)
+    assert short["exit_day"][0, 0] == 4
+    values = np.broadcast_to(np.arange(5.0), (20, 5))
+    result = portfolio_metrics(
+        p, values, labels["eligible"], 0, 1, 2, 0, minimum=3, max_exit_delay=2
+    )
+    assert result["return"] == pytest.approx(-0.6)
+    assert result["delayed_positions"] == 2
+    # All ten permitted delayed sessions blocked: the loss is marked, not deleted.
+    p.down_limit[3:14, 4] = p.fields["open"][3:14, 4]
+    p.fields["close"][13, 4] = 6
+    labels = exit_labels(p, 2, max_exit_delay=10)
+    assert labels["exit_unresolved"][0, 4]
+    assert labels["returns"][0, 4] == pytest.approx(-0.4)
+    result = portfolio_metrics(p, values, labels["eligible"], 0, 1, 2, 0, minimum=3)
+    assert result["return"] == pytest.approx(-0.7)
+    assert result["exit_unresolved"] == 1
+
+
+def test_delayed_boundary_unknown_not_dropped_and_future_fenced():
+    from alpha_evidence_lab.factor_eval import exit_labels, portfolio_metrics
+
+    p = panel(days=20, stocks=5)
+    p.suspended[3:8, 4] = True
+    labels = exit_labels(p, 2, boundary=8)
+    assert labels["eligible"][0, 4] and labels["boundary_unknown"][0, 4]
+    values = np.broadcast_to(np.arange(5.0), (20, 5))
+    first = portfolio_metrics(p, values, labels["eligible"], 0, 1, 2, 0, minimum=3, boundary=8)
+    assert first["return"] is None and first["boundary_unknown_positions"] == 1
+    for field in p.fields.values():
+        field[8:] *= 99
+    after = exit_labels(p, 2, boundary=8)
+    for k in labels:
+        np.testing.assert_equal(labels[k][:8], after[k][:8])
+    assert first == portfolio_metrics(
+        p, values, after["eligible"], 0, 1, 2, 0, minimum=3, boundary=8
+    )

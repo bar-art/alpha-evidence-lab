@@ -1,4 +1,4 @@
-"""Factor diagnostics. Future exit eligibility is a conditional research filter."""
+"""Fenced factor evaluation with side-specific delayed exits."""
 
 from datetime import date
 from typing import Any
@@ -9,59 +9,98 @@ from .factor_dsl import _cs_rank
 from .panel import Panel
 
 
-def forward_returns(panel: Panel, horizon: int) -> tuple[np.ndarray, np.ndarray, dict[str, int]]:
-    """At close t, enter open t+1 and exit open t+1+h. Not an executable portfolio."""
-    if horizon < 1:
-        raise ValueError("horizon must be positive")
-    shape = panel.fields["open"].shape
-    returns = np.full(shape, np.nan)
-    allowed = np.zeros(shape, dtype=bool)
-    count = {
-        key: 0
+def exit_labels(
+    panel: Panel,
+    horizon: int,
+    *,
+    max_exit_delay: int = 10,
+    boundary: int | None = None,
+    short: bool = False,
+) -> dict[str, np.ndarray]:
+    """Resolve without crossing the exclusive fence; never filter entry by future exits.
+
+    A complete delay budget exhausted inside the fence is marked to last observed close.
+    A truncated delay budget is unknown, not a zero return or a removed loss.
+    """
+    if horizon < 1 or max_exit_delay < 0:
+        raise ValueError("Invalid holding period or exit delay")
+    limit = min(boundary if boundary is not None else len(panel.dates), len(panel.dates))
+    opening = panel.fields["open"]
+    shape = opening.shape
+    t = np.arange(len(panel.dates))[:, None]
+    entry = t + 1
+    nominal = entry + horizon
+    entry_index = np.minimum(entry, max(0, limit - 1))[:, 0]
+    known = panel.limit_exempt | (np.isfinite(panel.up_limit) & np.isfinite(panel.down_limit))
+    up = ~panel.limit_exempt & (opening >= panel.up_limit - 1e-8)
+    down = ~panel.limit_exempt & (opening <= panel.down_limit + 1e-8)
+    # Retain the registered common entry convention: observed and not limit-up.
+    allowed = (
+        panel.member
+        & panel.observed
+        & (entry < limit)
+        & panel.observed[entry_index]
+        & known[entry_index]
+        & ~up[entry_index]
+    )
+    price = np.full(shape, np.nan)
+    day = np.full(shape, -1, dtype=int)
+    unresolved = np.zeros(shape, bool)
+    for delay in range(max_exit_delay + 1):
+        target = nominal + delay
+        idx = np.minimum(target, max(0, limit - 1))[:, 0]
+        can = (target < limit) & panel.observed[idx] & known[idx] & ~(up if short else down)[idx]
+        take = allowed & (day < 0) & can
+        price[take] = np.broadcast_to(opening[idx], shape)[take]
+        day[take] = np.broadcast_to(target, shape)[take]
+    exhausted = allowed & (day < 0) & (nominal + max_exit_delay < limit)
+    # Carry the last observed close, as of the last permitted delay day only.
+    last_close = np.full(shape[1], np.nan)
+    carried = np.full(shape, np.nan)
+    for i in range(limit):
+        last_close = np.where(panel.observed[i], panel.fields["close"][i], last_close)
+        carried[i] = last_close
+    target = np.minimum(nominal + max_exit_delay, max(0, limit - 1))[:, 0]
+    fallback = carried[target]
+    take = exhausted & np.isfinite(fallback)
+    price[take] = fallback[take]
+    day[take] = np.broadcast_to(nominal + max_exit_delay, shape)[take]
+    unresolved[take] = True
+    boundary_unknown = allowed & (day < 0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        returns = price / opening[entry_index] - 1
+    return {
+        "returns": returns,
+        "eligible": allowed,
+        "exit_day": day,
+        "exit_price": price,
+        "exit_unresolved": unresolved,
+        "boundary_unknown": boundary_unknown,
+        "nominal_inside": np.broadcast_to(nominal < limit, shape),
+        "entry_limit_up": (panel.member & panel.observed & (entry < limit) & up[entry_index]),
+        "entry_unobserved": (
+            panel.member & panel.observed & (entry < limit) & ~panel.observed[entry_index]
+        ),
+        "unknown_limits": (panel.member & panel.observed & (entry < limit) & ~known[entry_index]),
+    }
+
+
+def forward_returns(
+    panel: Panel, horizon: int, *, max_exit_delay: int = 10, boundary: int | None = None
+) -> tuple[np.ndarray, np.ndarray, dict[str, int]]:
+    labels = exit_labels(panel, horizon, max_exit_delay=max_exit_delay, boundary=boundary)
+    counters = {
+        key: int(labels[key].sum())
         for key in [
-            "eligible_decisions",
-            "entry_unobserved",
-            "exit_unobserved",
             "entry_limit_up",
-            "exit_limit_down",
+            "entry_unobserved",
             "unknown_limits",
+            "exit_unresolved",
+            "boundary_unknown",
         ]
     }
-    length = len(panel.dates) - horizon - 1
-    if length <= 0:
-        return returns, allowed, count
-    signal = panel.member[:length] & panel.observed[:length]
-    entry, exit_ = slice(1, length + 1), slice(horizon + 1, horizon + length + 1)
-    opens = panel.fields["open"]
-    entry_known = panel.limit_exempt[entry] | (
-        np.isfinite(panel.up_limit[entry]) & np.isfinite(panel.down_limit[entry])
-    )
-    exit_known = panel.limit_exempt[exit_] | (
-        np.isfinite(panel.up_limit[exit_]) & np.isfinite(panel.down_limit[exit_])
-    )
-    up = ~panel.limit_exempt[entry] & (opens[entry] >= panel.up_limit[entry] - 1e-8)
-    down = ~panel.limit_exempt[exit_] & (opens[exit_] <= panel.down_limit[exit_] + 1e-8)
-    valid = (
-        signal
-        & panel.observed[entry]
-        & panel.observed[exit_]
-        & entry_known
-        & exit_known
-        & ~up
-        & ~down
-    )
-    raw = opens[exit_] / opens[entry] - 1
-    allowed[:length] = valid & np.isfinite(raw)
-    returns[:length] = np.where(allowed[:length], raw, np.nan)
-    count.update(
-        eligible_decisions=int(signal.sum()),
-        entry_unobserved=int((signal & ~panel.observed[entry]).sum()),
-        exit_unobserved=int((signal & ~panel.observed[exit_]).sum()),
-        entry_limit_up=int((signal & up).sum()),
-        exit_limit_down=int((signal & down).sum()),
-        unknown_limits=int((signal & ~(entry_known & exit_known)).sum()),
-    )
-    return returns, allowed, count
+    counters["eligible_decisions"] = int(labels["eligible"].sum())
+    return labels["returns"], labels["eligible"], counters
 
 
 def rank_ic(
@@ -109,59 +148,94 @@ def portfolio_metrics(
     cost_bps: float,
     stamp_duty: tuple[tuple[date, float], ...] = (),
     minimum: int = 30,
+    *,
+    max_exit_delay: int = 10,
+    boundary: int | None = None,
 ) -> dict[str, Any]:
-    """Unit long + unit short per reset NAV, marked at opens; four cash-flow costs.
+    """Unit long + unit short, actual per-security exits; no new basket while capital is held.
 
-    Future exit filtering makes this conditional diagnostics, not executable P&L.
+    Boundary-unknown selected positions invalidate the aggregate, never remove that stock.
+    Exhausted exits are marked, remain unresolved, and incur no fictional closing fee.
     """
     from .evaluator import stamp_duty_rate
 
+    limit = min(boundary if boundary is not None else len(panel.dates), len(panel.dates))
+    sides = [
+        exit_labels(panel, horizon, max_exit_delay=max_exit_delay, boundary=limit, short=x)
+        for x in (False, True)
+    ]
     cost = cost_bps / 10000
-    nav, net, exclusions = [1.0], [], 0
+    nav, net = [1.0], []
+    exclusions = delayed = unresolved = unknown = 0
+    available = start + 1
+    opening, close = panel.fields["open"], panel.fields["close"]
     for t in range(start, stop, horizon):
-        valid = eligible[t] & np.isfinite(values[t])
-        names = np.flatnonzero(valid)
+        entry, nominal = t + 1, t + 1 + horizon
+        if nominal >= limit or entry < available:
+            exclusions += 1
+            continue
+        names = np.flatnonzero(eligible[t] & np.isfinite(values[t]))
         if len(names) < minimum:
             exclusions += 1
             continue
         order = names[np.argsort(values[t, names], kind="stable")]
         size = max(1, int(np.floor(len(order) * 0.2)))
-        if size * 2 > len(order):
-            exclusions += 1
-            continue
-        shorts, longs = order[:size], order[-size:]
-        entry, exit_ = t + 1, t + 1 + horizon
-        if exit_ >= len(panel.dates):
-            exclusions += 1
-            continue
-        opening = panel.fields["open"]
-        entry_tax = stamp_duty_rate(stamp_duty, panel.dates[entry].astype(object))
-        exit_tax = stamp_duty_rate(stamp_duty, panel.dates[exit_].astype(object))
+        longs, shorts = order[-size:], order[:size]
+        selected = [(sides[0], longs, 1), (sides[1], shorts, -1)]
+        unknown += sum(
+            int(labels["boundary_unknown"][t, names].sum()) for labels, names, _ in selected
+        )
+        if unknown:
+            break
+        last = max(int(labels["exit_day"][t, names].max()) for labels, names, _ in selected)
+        delayed += sum(
+            int((labels["exit_day"][t, names] > nominal).sum()) for labels, names, _ in selected
+        )
+        unresolved += sum(
+            int(labels["exit_unresolved"][t, names].sum()) for labels, names, _ in selected
+        )
         base = nav[-1]
-        entry_fee = 2 * cost + entry_tax
+        entry_fee = 2 * cost + stamp_duty_rate(stamp_duty, panel.dates[entry].astype(object))
         nav.append(base * (1 - entry_fee))
-        before = len(nav)
-        for day in range(entry + 1, exit_ + 1):
-            long_ratio = float(np.mean(opening[day, longs] / opening[entry, longs]))
-            short_ratio = float(np.mean(opening[day, shorts] / opening[entry, shorts]))
-            value = 1 + long_ratio - short_ratio - entry_fee
-            if day == exit_:
-                value -= (cost + exit_tax) * long_ratio + cost * short_ratio
+        carried = {sign: opening[entry, names].copy() for _, names, sign in selected}
+        for day in range(entry + 1, last + 1):
+            value = 1 - entry_fee
+            for labels, names, sign in selected:
+                exits = labels["exit_day"][t, names]
+                observed = panel.observed[day, names]
+                mark = np.where(observed, opening[day, names], carried[sign])
+                carried[sign] = np.where(observed, close[day, names], carried[sign])
+                mark = np.where(exits <= day, labels["exit_price"][t, names], mark)
+                ratio = mark / opening[entry, names]
+                value += sign * float(np.mean(ratio - 1))
+                closed = (exits <= day) & ~labels["exit_unresolved"][t, names]
+                rates = np.array(
+                    [
+                        stamp_duty_rate(stamp_duty, panel.dates[e].astype(object))
+                        if sign == 1
+                        else 0
+                        for e in exits
+                    ]
+                )
+                value -= float(np.mean(np.where(closed, ratio * (cost + rates), 0)))
             if not np.isfinite(value) or value <= 0:
                 raise ValueError("Missing valuation or nonpositive long-short NAV")
             nav.append(base * value)
-        assert len(nav) > before
         net.append(nav[-1] / base - 1)
-    if not net:
-        raise ValueError("No complete tradable non-overlapping baskets")
+        available = last
     curve = np.asarray(nav)
     return {
-        "return": float(curve[-1] - 1),
-        "drawdown": float(np.max(1 - curve / np.maximum.accumulate(curve))),
+        "return": float(curve[-1] - 1) if net and not unknown else None,
+        "drawdown": float(np.max(1 - curve / np.maximum.accumulate(curve)))
+        if net and not unknown
+        else None,
         "nav": nav,
         "period_returns": net,
         "portfolio_periods": len(net),
         "excluded_rebalance_days": exclusions,
+        "delayed_positions": delayed,
+        "exit_unresolved": unresolved,
+        "boundary_unknown_positions": unknown,
     }
 
 
@@ -176,6 +250,7 @@ def evaluate_factor(
     cost_bps: float = 7,
     stamp_duty_schedule: tuple[tuple[date, float], ...] = (),
     minimum: int = 30,
+    max_exit_delay: int = 10,
 ) -> dict[str, Any]:
     from .factor_dsl import evaluate
 
@@ -195,13 +270,35 @@ def evaluate_factor(
     )
     if coverage < 0.7:
         raise ValueError(f"Factor coverage below 70%: {coverage:.4f}")
-    returns, eligible, exclusions = forward_returns(panel, horizon)
     boundary = min(label_stop if label_stop is not None else len(panel.dates), len(panel.dates))
-    eligible[np.arange(len(panel.dates)) + horizon + 1 >= boundary] = False
-    ic = rank_ic(values, returns, eligible, minimum)
+    labels = exit_labels(panel, horizon, max_exit_delay=max_exit_delay, boundary=boundary)
+    eligible = labels["eligible"]
+    ic = rank_ic(values, labels["returns"], eligible, minimum)
+    # Unknown labels must not remove individual losses from a day's correlation.
+    ic[np.any(eligible & labels["boundary_unknown"], axis=1)] = np.nan
     metrics = portfolio_metrics(
-        panel, values, eligible, start, stop, horizon, cost_bps, stamp_duty_schedule, minimum
+        panel,
+        values,
+        eligible,
+        start,
+        stop,
+        horizon,
+        cost_bps,
+        stamp_duty_schedule,
+        minimum,
+        max_exit_delay=max_exit_delay,
+        boundary=boundary,
     )
+    exclusions = {
+        key: int(labels[key][start:stop].sum())
+        for key in [
+            "entry_limit_up",
+            "entry_unobserved",
+            "unknown_limits",
+            "exit_unresolved",
+            "boundary_unknown",
+        ]
+    }
     return {
         **metrics,
         **ic_statistics(ic, start, stop, horizon),
@@ -209,5 +306,5 @@ def evaluate_factor(
         "daily_ic": [float(x) if np.isfinite(x) else None for x in ic[start:stop]],
         "exclusions": exclusions,
         "label_stop_exclusive": boundary,
-        "metric_kind": "conditional_long_short_gross_2_open_marked_research",
+        "metric_kind": "delayed_exit_long_short_gross_2_open_marked_research",
     }

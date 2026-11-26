@@ -142,6 +142,7 @@ def search_arm(
     memories: list[dict[str, Any]],
     client: OpenRouterClient | None = None,
     minimum: int = 30,
+    max_exit_delay: int = 10,
 ) -> dict[str, Any]:
     if arm not in {"library", "random", "llm"} or (arm == "llm" and client is None):
         raise ValueError("Unknown factor method or missing LLM client")
@@ -237,7 +238,10 @@ def search_arm(
                 cost_bps=cost_bps,
                 stamp_duty_schedule=stamp_duty_schedule,
                 minimum=minimum,
+                max_exit_delay=max_exit_delay,
             )
+            if metrics.get("return", 0) is None:
+                raise FactorError("Selected basket has boundary-unknown exit or no complete basket")
             if metrics["icir"] is None:
                 raise FactorError("ICIR undefined: insufficient non-overlapping IC variation")
             score = float(metrics["icir"])
