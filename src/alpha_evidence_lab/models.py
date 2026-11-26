@@ -120,6 +120,9 @@ class Hypothesis(Contract):
 
 
 class FactorPlan(Contract):
+    excluded_episodes: tuple[int, ...] = (111, 112)
+    observed_results: tuple[dict[str, Any], ...] = ()
+    power_reference_sd: float | None = Field(default=None, gt=0, allow_inf_nan=False)
     protocol_version: Literal["v2-delayed-exit", "v3-settlement"] = "v2-delayed-exit"
 
     @property
@@ -164,6 +167,14 @@ class FactorPlan(Contract):
 
     @model_validator(mode="after")
     def factor_consistency(self) -> "FactorPlan":
+        if len(set(self.excluded_episodes)) != len(self.excluded_episodes) or any(
+            e < 0 for e in self.excluded_episodes
+        ):
+            raise ValueError("Excluded episode IDs must be unique and nonnegative")
+        if self.protocol_version == "v3-settlement" and not {111, 112}.issubset(
+            self.excluded_episodes
+        ):
+            raise ValueError("V3 must exclude the revealed pilot episodes 111 and 112")
         if self.holdout_sessions <= self.horizon + 1:
             raise ValueError("Test block must contain a completed forward holding period")
         days = [day for day, _ in self.stamp_duty_schedule]

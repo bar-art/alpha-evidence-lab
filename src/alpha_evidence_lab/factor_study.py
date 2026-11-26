@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 
 from .factor_arms import CLASSIC_EXPRESSIONS, normalize, search_arm
+from .factor_design import power_description
 from .factor_dsl import FIELDS, WINDOWS
 from .factor_eval import SettlementError, evaluate_factor
 from .factor_tree import FUNCTIONS
@@ -48,6 +49,9 @@ def episode_calendar(
                 }
             )
             continue
+        if plan.protocol_version == "v3-settlement" and number in plan.excluded_episodes:
+            excluded.append({**base, "reason": "previously_revealed_pilot"})
+            continue
         phase = (
             "confirmation"
             if panel.dates[test_start] > np.datetime64(plan.confirm_start)
@@ -78,7 +82,7 @@ def episodes(panel: Panel, plan: FactorPlan) -> list[dict[str, Any]]:
 
 
 def factor_gate(rows: list[dict[str, Any]], plan: FactorPlan) -> dict[str, Any]:
-    return paired_gate(
+    gate = paired_gate(
         rows,
         plan.arms,
         1999,
@@ -90,6 +94,22 @@ def factor_gate(rows: list[dict[str, Any]], plan: FactorPlan) -> dict[str, Any]:
         warmup_episodes=plan.warmup_episodes,
         baseline="library",
     )
+
+    if plan.protocol_version == "v3-settlement":
+        gate["planned_family_size"] = 2
+        gate["primary_comparison"] = "llm versus library; confirmation only"
+        gate["primary_observed_in_this_run"] = "llm" in plan.arms
+        for row in gate.get("comparisons", []):
+            row["comparison_role"] = (
+                "primary" if row["arm"] == "llm" else "previously_observed_reference_only"
+            )
+            row["planned_family_adjusted_p"] = (
+                min(1.0, 2 * row["p_raw"]) if row["p_raw"] is not None else None
+            )
+            if row["arm"] == "random":
+                row["numeric_gate_outcome"] = row["outcome"]
+                row["outcome"] = "reference_only"
+    return gate
 
 
 def run_factor_study(
@@ -131,6 +151,22 @@ def run_factor_study(
         "code_hash": source_digest(),
         "arms": plan.arms,
         "episodes": schedule,
+        "observed_results": plan.observed_results,
+        "design_amendment_reason": "settlement fixes the missing-exit mechanism; wider gap "
+        "isolates development labels; precheck improves baseline quality, "
+        "not selected according to return direction",
+        "comparisons": {
+            "primary": "llm versus library in remaining confirmation blocks",
+            "secondary": "random versus library; previously observed, reference only",
+            "planned_bonferroni_family": ["llm/library", "random/library"],
+            "planned_family_size": 2,
+            "current_run_family_size": len(plan.arms) - 1,
+            "novelty": "exact v3 LLM comparison not yet run; underlying historical data and "
+            "earlier protocol results have been seen, not a fresh-data holdout",
+        },
+        "power": power_description(
+            sum(e["phase"] == "confirmation" for e in schedule), plan.power_reference_sd, plan.alpha
+        ),
         "classic_library": CLASSIC_EXPRESSIONS,
         "selection_score": "development ICIR; max(score,id) tie break; "
         "unknown basket returns remain missing, do not invalidate finite ICIR",
@@ -168,7 +204,8 @@ def run_factor_study(
         ),
         "boundary_rule": (
             "exits/marks strictly before label_stop; "
-            "truncated delay budget unknown; no outside reads"
+            "v2 truncated delay budget unknown; v3 complete settlement required, "
+            "unexpected unknown raises; no outside-fence reads"
         ),
         "portfolio": ("long 1 + short 1, gross 2, open marks, side-specific delayed exits"),
         "cost_rule": "entry and exit notional costs on both legs; tax on short entry and long exit",
@@ -326,7 +363,11 @@ def run_factor_study(
             "Each block resets NAV to 1; mean block returns are not a continuous portfolio.",
             f"Random/LLM share depth {plan.max_depth}, nodes {plan.max_nodes}, "
             f"lookback {plan.max_lookback}; outer rank depth exempt.",
-            "Confirmation sample is short; non-overlap does not prove independent market blocks.",
+            "Confirmation sample is short; adjacent settlement P&L windows overlap and "
+            "can share shocks. Exact p-values remain conditional on independent/sign-symmetric "
+            "block differences; no independence is established by input isolation.",
+            "Random/library results were previously observed and are reference only in v3; "
+            "the underlying dataset is reused and the amendment is disclosed.",
             (
                 "Model publication cutoff reduces historical "
                 "look-ahead, not knowledge of published factor literature."
