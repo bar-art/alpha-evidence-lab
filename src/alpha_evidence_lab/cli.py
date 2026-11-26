@@ -16,9 +16,11 @@ from .study import run_study
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Alpha Evidence Lab；仅供研究，不构成投资建议")
-    parser.add_argument("command", choices=["demo", "research", "verify"])
+    parser.add_argument("command", choices=["demo", "research", "verify", "factor-study"])
     parser.add_argument("--output", type=Path, default=Path("output/demo"))
     parser.add_argument("--config", type=Path)
+    parser.add_argument("--bars", type=Path)
+    parser.add_argument("--manifest", type=Path)
     parser.add_argument("--input", type=Path, nargs="+")
     parser.add_argument("--bundle", type=Path, help="Hash-checked research_bundle_v1 directory")
     parser.add_argument("--source", help="用户数据来源说明")
@@ -46,6 +48,31 @@ def main(argv: list[str] | None = None) -> int:
                 if hashlib.sha256((args.output / name).read_bytes()).hexdigest() != expected:
                     raise ValueError(f"交付物哈希不一致：{name}")
             print("事件链、状态投影与文件哈希校验通过；本地检查点不是第三方认证。")
+            return 0
+        if args.command == "factor-study":
+            from .factor_study import run_factor_study
+            from .models import FactorPlan
+            from .panel import load_panel
+            from .report import export_factor
+
+            if args.bars is None or args.manifest is None:
+                raise ValueError("factor-study requires --bars and --manifest")
+            factor_plan = (
+                FactorPlan.model_validate_json(args.config.read_text())
+                if args.config
+                else FactorPlan()
+            )
+            result = run_factor_study(
+                factor_plan,
+                load_panel(args.bars, args.manifest),
+                args.output,
+                llm_cache=args.llm_cache,
+            )
+            export_factor(result, args.output)
+            print(
+                f"Factor study: {len(result['batches'])} rounds; "
+                f"confirmation gate {result['gate']['outcome']}"
+            )
             return 0
         plan = (
             StudyPlan.model_validate_json(args.config.read_text()) if args.config else StudyPlan()

@@ -117,3 +117,45 @@ class Hypothesis(Contract):
     candidate_id: str
     rationale: str = Field(min_length=1, max_length=500)
     evidence_ids: tuple[str, ...] = ()
+
+
+class FactorPlan(Contract):
+    question: str = (
+        "At equal trial budgets, do LLM price-volume factors "
+        "outperform fixed-library and random proposals out of sample?"
+    )
+    budget: int = Field(default=5, ge=1, le=10)
+    horizon: int = Field(default=5, ge=1, le=20)
+    dev_sessions: int = Field(default=120, ge=20)
+    holdout_sessions: int = Field(default=20, ge=5)
+    confirm_start: date = date(2025, 8, 8)
+    cost_bps: float = Field(default=7, ge=0, le=100)
+    stamp_duty_schedule: tuple[tuple[date, float], ...] = ()
+    seed: int = Field(default=20261126, ge=0)
+    alpha: float = Field(default=0.05, gt=0, lt=0.5)
+    max_holdout_drawdown: float = Field(default=0.25, gt=0, le=1)
+    minimum_paths: int = Field(default=6, ge=6)
+    warmup_episodes: int = Field(default=0, ge=0)
+    minimum_symbols: int = Field(default=30, ge=2)
+    # Same maximum history for every method; DSL lookback is capped at 250.
+    warmup_sessions: int = Field(default=250, ge=250, le=250)
+    confirmation_only: bool = False
+    max_episodes: int | None = Field(default=None, ge=1)
+    llm: LlmSettings | None = None
+
+    @property
+    def arms(self) -> tuple[str, ...]:
+        return ("library", "random", "llm") if self.llm else ("library", "random")
+
+    @model_validator(mode="after")
+    def factor_consistency(self) -> "FactorPlan":
+        if self.holdout_sessions <= self.horizon + 1:
+            raise ValueError("Test block must contain a completed forward holding period")
+        days = [day for day, _ in self.stamp_duty_schedule]
+        if days != sorted(set(days)) or any(
+            not 0 <= bps <= 100 for _, bps in self.stamp_duty_schedule
+        ):
+            raise ValueError("Invalid factor stamp duty schedule")
+        if self.llm and self.confirm_start <= self.llm.release_date:
+            raise ValueError("Confirmation boundary must be after the declared model release")
+        return self

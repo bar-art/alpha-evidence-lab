@@ -106,6 +106,10 @@ def export(result: dict[str, Any], output: Path) -> None:
             writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
             writer.writeheader()
             writer.writerows(rows)
+    _checkpoint(result, output)
+
+
+def _checkpoint(result: dict[str, Any], output: Path) -> None:
     files = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted(output.iterdir())
@@ -118,3 +122,81 @@ def export(result: dict[str, Any], output: Path) -> None:
         "artifact_hashes": files,
     }
     (output / "checkpoint.json").write_text(json.dumps(checkpoint, indent=2), encoding="utf-8")
+
+
+def export_factor(result: dict[str, Any], output: Path) -> None:
+    escape = html.escape
+    primary = [r for r in result["results"] if r["phase"] == "confirmation"]
+    summary = []
+    for arm in result["registration"]["arms"]:
+        held = [r for r in primary if r["arm"] == arm and r["status"] == "ok"]
+        trials = [r for r in result["trials"] if r["arm"] == arm]
+        failed = [r for r in trials if r["status"] == "failed"]
+        classic = set(result["registration"]["classic_library"])
+        from .factor_arms import normalize
+
+        normalized = []
+        for row in trials:
+            try:
+                normalized.append(normalize(row["payload"]["proposal"]["expression"]).expression)
+            except ValueError:
+                pass
+        summary.append(
+            {
+                "method": arm,
+                "confirmation_rounds": len(held),
+                "mean_test_return": sum(r["return"] for r in held) / len(held) if held else None,
+                "mean_test_ic": sum(
+                    r["metrics"]["ic_mean"] for r in held if r["metrics"]["ic_mean"] is not None
+                )
+                / max(1, sum(r["metrics"]["ic_mean"] is not None for r in held)),
+                "trials": len(trials),
+                "failure_rate": len(failed) / len(trials) if trials else None,
+                "duplicate_rate": sum("Duplicate" in r["payload"].get("error", "") for r in trials)
+                / len(trials)
+                if trials
+                else None,
+                "library_expression_equivalence": sum(
+                    x in {normalize(c).expression for c in classic} for x in normalized
+                )
+                / len(normalized)
+                if normalized
+                else None,
+            }
+        )
+    result["summary"] = summary
+    limits = "".join("<li>" + escape(x) + "</li>" for x in result["limitations"])
+    page = '<!doctype html><html lang="en"><meta charset="utf-8"><title>Factor study</title><style>body{max-width:1100px;margin:35px auto;font:15px/1.6 system-ui}table{border-collapse:collapse}td,th{border:1px solid #bbb;padding:7px}pre{white-space:pre-wrap}</style>'
+    page += (
+        "<h1>Price-volume factor study</h1><p>"
+        + escape(result["registration"]["plan"]["question"])
+        + "</p>"
+    )
+    page += (
+        "<h2>Confirmation: primary result</h2><pre>"
+        + escape(canonical(result["gate"]))
+        + "</pre>"
+        + table(summary)
+    )
+    page += (
+        "<h2>Exploration only</h2><pre>" + escape(canonical(result["exploration_gate"])) + "</pre>"
+    )
+    page += "<h2>Registered design</h2><pre>" + escape(canonical(result["registration"])) + "</pre>"
+    page += "<h2>Model usage</h2><pre>" + escape(canonical(result["llm_usage"])) + "</pre>"
+    page += (
+        "<h2>Limitations</h2><ul>"
+        + limits
+        + "</ul><p>Research diagnostics only; not investment advice.</p></html>"
+    )
+    (output / "report.html").write_text(page)
+    (output / "study.json").write_text(canonical(result))
+    for key, name in [("results", "holdout_results.csv"), ("trials", "attempts.csv")]:
+        rows = [
+            {k: canonical(v) if isinstance(v, (dict, list, tuple)) else v for k, v in row.items()}
+            for row in result[key]
+        ]
+        with (output / name).open("w", encoding="utf-8-sig", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+    _checkpoint(result, output)
