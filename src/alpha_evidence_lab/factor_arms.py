@@ -72,41 +72,52 @@ def normalize(expression: str) -> Factor:
     return factor
 
 
-def random_factor(rng: np.random.Generator) -> Factor:
-    windows = [2, 3, 5, 10, 20, 40, 60, 120]
+def bounded_factor(
+    expression: str, max_depth: int = 4, max_nodes: int = 25, max_lookback: int = 250
+) -> Factor:
+    factor = normalize(expression)
+    # All normalized roots are rank/zscore. Only that outer depth level is exempt;
+    # node count includes the wrapper and window constants, as in the DSL parser.
+    if factor.depth - 1 > max_depth or factor.nodes > max_nodes or factor.lookback > max_lookback:
+        raise FactorError(
+            "Shared expression limits exceeded: "
+            f"depth={factor.depth - 1}/{max_depth}, nodes={factor.nodes}/{max_nodes}, "
+            f"lookback={factor.lookback}/{max_lookback}"
+        )
+    return factor
+
+
+def random_factor(
+    rng: np.random.Generator, max_depth: int = 4, max_nodes: int = 25, max_lookback: int = 250
+) -> Factor:
+    from .factor_dsl import FIELDS, WINDOWS
+    from .factor_tree import FUNCTIONS, OPS, serialize_tree
+
+    def generate(depth: int) -> dict[str, Any]:
+        mode = int(rng.integers(5)) if depth < max_depth else 0
+        if mode == 0 or (depth == 1 and mode == 1):
+            return {"field": str(rng.choice(FIELDS))}
+        if mode == 1:
+            return {"const": int(rng.choice([-2, -1, 1, 2]))}
+        if mode == 2:
+            op = str(rng.choice([*OPS, "neg"]))
+            return {"op": op, "args": [generate(depth + 1) for _ in range(1 if op == "neg" else 2)]}
+        fn = str(rng.choice(list(FUNCTIONS)))
+        spec = FUNCTIONS[fn]
+        node: dict[str, Any] = {
+            "fn": fn,
+            "args": [generate(depth + 1) for _ in range(spec["series_args"])],
+        }
+        if spec["window_min"] is not None:
+            node["window"] = int(rng.choice([x for x in WINDOWS if x >= spec["window_min"]]))
+        return node
+
     for _ in range(100):
-        field = str(rng.choice(["close", "high", "low", "volume", "ret"]))
-        n = int(rng.choice(windows))
-        mode = int(rng.integers(4))
-        if mode == 0:
-            function = str(
-                rng.choice(
-                    [
-                        "ts_mean",
-                        "ts_std",
-                        "ts_min",
-                        "ts_max",
-                        "ts_rank",
-                        "pct_change",
-                        "delta",
-                        "delay",
-                    ]
-                )
-            )
-            expression = f"{function}({field}, {n})"
-        elif mode == 1:
-            expression = f"ts_mean({field}, {n}) / ts_mean({field}, {int(rng.choice(windows))})"
-        elif mode == 2:
-            other = str(rng.choice([x for x in ["close", "volume", "ret"] if x != field]))
-            expression = f"ts_corr({field}, {other}, {max(3, n)})"
-        else:
-            expression = f"(high - low) / {rng.choice(['close', 'open'])}"
-        if mode in {0, 2} and bool(rng.integers(2)):
-            expression = "-" + expression
-        factor = normalize(expression)
-        if factor.depth <= 4 and factor.lookback <= 250:
-            return factor
-    raise ValueError("Random grammar exhausted its bounded generation attempts")
+        try:
+            return bounded_factor(serialize_tree(generate(1)), max_depth, max_nodes, max_lookback)
+        except FactorError:
+            continue
+    raise FactorError("Random grammar exhausted its bounded generation attempts")
 
 
 def proposal_schema(aliases: list[str], prompt_version: str = "v1-string") -> dict[str, Any]:
@@ -153,6 +164,9 @@ def search_arm(
     minimum: int = 30,
     max_exit_delay: int = 10,
     prompt_version: str = "v1-string",
+    max_depth: int = 4,
+    max_nodes: int = 25,
+    max_lookback: int = 250,
 ) -> dict[str, Any]:
     if arm not in {"library", "random", "llm"} or (arm == "llm" and client is None):
         raise ValueError("Unknown factor method or missing LLM client")
@@ -188,7 +202,13 @@ def search_arm(
             # No panel identity, dates, symbols, prices or holdout results enter the prompt.
             from .factor_tree import EXAMPLES, FUNCTIONS
 
-            language = dict(DSL_SPEC)
+            language = dict(
+                DSL_SPEC,
+                max_depth=max_depth,
+                max_nodes=max_nodes,
+                max_lookback=max_lookback,
+                outer_rank_depth_exempt=True,
+            )
             if prompt_version == "v2-tree":
                 language.update(
                     function_table=FUNCTIONS,
@@ -212,11 +232,11 @@ def search_arm(
             if arm == "library":
                 factor = normalize(CLASSIC_EXPRESSIONS[attempt])
             else:
-                factor = random_factor(rng)
+                factor = random_factor(rng, max_depth, max_nodes, max_lookback)
                 for _ in range(50):
                     if factor.id not in seen:
                         break
-                    factor = random_factor(rng)
+                    factor = random_factor(rng, max_depth, max_nodes, max_lookback)
             idea = {
                 "expression": factor.expression,
                 "hypothesis": "Pre-registered library"
@@ -251,7 +271,11 @@ def search_arm(
                 aliases and "none" in cited
             ):
                 raise FactorError("Unknown anonymous evidence reference")
-            factor = normalize(expression)
+            factor = (
+                bounded_factor(expression, max_depth, max_nodes, max_lookback)
+                if arm != "library"
+                else normalize(expression)
+            )
             candidate = factor.id
             if factor.id in seen:
                 raise FactorError("Duplicate normalized factor in this method/round")

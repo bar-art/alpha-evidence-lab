@@ -34,5 +34,10 @@
     "temperature": null,
     "reasoning_effort": "minimal",
     "provider": "openai/flex"
-  }
+  },
+  "max_exit_delay": 10,
+  "max_depth": 4,
+  "max_nodes": 25,
+  "max_lookback": 250,
+  "prompt_version": "v2-tree"
 }

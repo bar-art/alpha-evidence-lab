@@ -6,7 +6,7 @@ from typing import Any
 from .factor_dsl import CS_FUNCS, FIELDS, TS_FUNCS, UNARY_FUNCS, WINDOWS, FactorError
 
 OPS = {"add": "+", "sub": "-", "mul": "*", "div": "/"}
-FUNCTIONS = {
+FUNCTIONS: dict[str, dict[str, Any]] = {
     **{
         name: {
             "series_args": arity,

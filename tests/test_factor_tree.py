@@ -135,3 +135,25 @@ def test_tree_format_repairs_vs_semantic_trials_and_feedback(tmp_path, monkeypat
     for request in calls:
         text = json.dumps(request)
         assert "600000.SH" not in text and "2024-01" not in text and "holdout" not in text
+
+
+def test_shared_limits_ignore_only_outer_rank_depth():
+    from alpha_evidence_lab.factor_arms import bounded_factor
+    from alpha_evidence_lab.factor_dsl import FactorError
+
+    leaf = "close"
+    for _ in range(3):
+        leaf = f"abs({leaf})"
+    assert bounded_factor(leaf).depth == 5
+    assert bounded_factor(f"cs_rank({leaf})") == bounded_factor(leaf)
+    with pytest.raises(FactorError, match="Shared expression limits"):
+        bounded_factor(f"abs({leaf})")
+    with pytest.raises(FactorError, match="Shared expression limits"):
+        bounded_factor("close+volume", max_nodes=3)
+    with pytest.raises(FactorError, match="Shared expression limits"):
+        bounded_factor("delay(close,120)", max_lookback=100)
+    # Random and model tree adapter share the exact same acceptance function.
+    rng = np.random.default_rng(42)
+    for _ in range(500):
+        f = random_factor(rng)
+        assert f == bounded_factor(serialize_tree(expression_tree(f.expression)))

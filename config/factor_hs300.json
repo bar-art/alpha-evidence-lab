@@ -25,5 +25,10 @@
   "warmup_sessions": 250,
   "confirmation_only": false,
   "max_episodes": null,
-  "llm": null
+  "llm": null,
+  "max_exit_delay": 10,
+  "max_depth": 4,
+  "max_nodes": 25,
+  "max_lookback": 250,
+  "prompt_version": "v2-tree"
 }

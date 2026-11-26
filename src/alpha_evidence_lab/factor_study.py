@@ -6,7 +6,9 @@ from typing import Any
 import numpy as np
 
 from .factor_arms import CLASSIC_EXPRESSIONS, normalize, search_arm
+from .factor_dsl import FIELDS, WINDOWS
 from .factor_eval import evaluate_factor
+from .factor_tree import FUNCTIONS
 from .inference import paired_gate
 from .ledger import Ledger
 from .llm import MAX_FLAG_RETRIES, MAX_REPAIRS, LlmBudgetError, OpenRouterClient, fetch_pricing
@@ -95,8 +97,17 @@ def run_factor_study(
         "classic_library": CLASSIC_EXPRESSIONS,
         "selection_score": "development ICIR; max(score,id) tie break",
         "random_grammar": {
-            "depth_max": 4,
-            "lookback_max": 250,
+            "depth_max": plan.max_depth,
+            "nodes_max": plan.max_nodes,
+            "lookback_max": plan.max_lookback,
+            "outer_rank_depth_exempt": True,
+            "shared_with_llm": True,
+            "functions": FUNCTIONS,
+            "fields": FIELDS,
+            "windows": WINDOWS,
+            "operators": ["add", "sub", "mul", "div", "neg"],
+            "random_constants": [-2, -1, 1, 2],
+            "constant_root": False,
             "duplicate_redraws": 50,
             "seed_derivation": "sha256(seed,episode,arm)",
         },
@@ -158,6 +169,9 @@ def run_factor_study(
                     minimum=plan.minimum_symbols,
                     max_exit_delay=plan.max_exit_delay,
                     prompt_version=plan.prompt_version,
+                    max_depth=plan.max_depth,
+                    max_nodes=plan.max_nodes,
+                    max_lookback=plan.max_lookback,
                 )
                 winners[arm] = winner["candidate"]
                 trials.extend(
@@ -256,7 +270,8 @@ def run_factor_study(
             ),
             "Drawdown uses open-marked equity, not intraday extrema.",
             "Each block resets NAV to 1; mean block returns are not a continuous portfolio.",
-            "Random expressions have depth cap 4; LLM expressions have DSL depth cap 8.",
+            f"Random/LLM share depth {plan.max_depth}, nodes {plan.max_nodes}, "
+            f"lookback {plan.max_lookback}; outer rank depth exempt.",
             "Confirmation sample is short; non-overlap does not prove independent market blocks.",
             (
                 "Model publication cutoff reduces historical "

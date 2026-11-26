@@ -120,6 +120,9 @@ class Hypothesis(Contract):
 
 
 class FactorPlan(Contract):
+    max_depth: int = Field(default=4, ge=1, le=7)
+    max_nodes: int = Field(default=25, ge=3, le=50)
+    max_lookback: int = Field(default=250, ge=1, le=250)
     prompt_version: Literal["v1-string", "v2-tree"] = "v2-tree"
     max_exit_delay: int = Field(default=10, ge=0, le=30)
     question: str = (

@@ -138,7 +138,9 @@ def export_factor(result: dict[str, Any], output: Path) -> None:
         normalized = []
         for row in trials:
             try:
-                normalized.append(normalize(row["payload"]["proposal"]["expression"]).expression)
+                normalized.append(
+                    normalize(row["payload"]["proposal"].get("expression", "")).expression
+                )
             except ValueError:
                 pass
         summary.append(

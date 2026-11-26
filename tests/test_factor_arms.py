@@ -18,7 +18,9 @@ def test_classic_order_and_random_reproducibility():
     a, b = np.random.default_rng(9), np.random.default_rng(9)
     for _ in range(500):
         first, second = random_factor(a), random_factor(b)
-        assert first == second and first.lookback <= 250 and first.depth <= 4
+        assert (
+            first == second and first.lookback <= 250 and first.depth - 1 <= 4 and first.nodes <= 25
+        )
 
 
 def test_llm_failures_consume_trials_but_json_repairs_do_not(tmp_path, monkeypatch):
