@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools==79.0.1"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "alpha-evidence-lab"
+version = "0.1.0"
+description = "Pre-registered, equal-budget strategy-search evidence laboratory"
+requires-python = ">=3.11"
+dependencies = ["numpy==2.4.6", "pydantic==2.14.3"]
+[project.scripts]
+alpha-lab = "alpha_evidence_lab.cli:main"
+[tool.setuptools.packages.find]
+where = ["src"]
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["references", ".venv"]
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+[tool.ruff.lint.per-file-ignores]
+"src/alpha_evidence_lab/report.py" = ["E501"]
+[tool.mypy]
+strict = true
+python_version = "3.11"
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "--cov=alpha_evidence_lab --cov-report=term-missing --cov-fail-under=80"

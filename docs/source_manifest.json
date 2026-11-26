@@ -1,0 +1,182 @@
+{
+  "review_date": "2026-11-24",
+  "repo": "OnePunchMonk/AgentQuant",
+  "ref": "830376cbca073225c955c29b7f61f4b19977ebd6",
+  "scope": "29 selected files retrieved in full; core paths read closely, larger modules followed by targeted call-chain inspection. Not an audit of the entire repository.",
+  "files": [
+    {
+      "path": "README.md",
+      "blob_sha": "113ff611ad2cda142b534677659ce79c53be33ad",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/README.md",
+      "lines": 57
+    },
+    {
+      "path": "LICENSE",
+      "blob_sha": "4587291dc10460f0a06922414ac47a71aa473726",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/LICENSE",
+      "lines": 22
+    },
+    {
+      "path": "DESIGN.md",
+      "blob_sha": "9bdd5433dd3a8fa04e1c20764e9d02f4e851ca8a",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/DESIGN.md",
+      "lines": 338
+    },
+    {
+      "path": "src/agent/episode_splits.py",
+      "blob_sha": "94ee316b4a541294eebc54a075f13132430a3e76",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/agent/episode_splits.py",
+      "lines": 176
+    },
+    {
+      "path": "src/backtest/runner.py",
+      "blob_sha": "a1891814974cc535de5b9b7dd3704e72d82bd0fd",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/backtest/runner.py",
+      "lines": 256
+    },
+    {
+      "path": "src/backtest/simple_backtest.py",
+      "blob_sha": "56944b2295fa7b6ec1abaad5d9e5bcf0f038520e",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/backtest/simple_backtest.py",
+      "lines": 87
+    },
+    {
+      "path": "gate/agentquant_gate/gate.py",
+      "blob_sha": "00c7883805488b74a8073f6e6cf46abdb3ced58f",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/gate/agentquant_gate/gate.py",
+      "lines": 74
+    },
+    {
+      "path": "gate/agentquant_gate/prospective.py",
+      "blob_sha": "2c78664f84109378df72a47d3618434e673d23f5",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/gate/agentquant_gate/prospective.py",
+      "lines": 90
+    },
+    {
+      "path": "gate/agentquant_gate/ledger.py",
+      "blob_sha": "abde6f295ccf9611ffb9da7a7de028af4cb760aa",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/gate/agentquant_gate/ledger.py",
+      "lines": 126
+    },
+    {
+      "path": "src/backtest/metrics.py",
+      "blob_sha": "2bb91b847c9877f57bec78275cc2e2bbe49a1237",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/backtest/metrics.py",
+      "lines": 123
+    },
+    {
+      "path": "src/agent/parameter_grid.py",
+      "blob_sha": "c1d56ccb2770a80c2a1bbe7482420e1b655111ca",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/agent/parameter_grid.py",
+      "lines": 96
+    },
+    {
+      "path": "src/features/lookback_guard.py",
+      "blob_sha": "9e123c2518060465e8e14020e8b46785cc7535a9",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/features/lookback_guard.py",
+      "lines": 79
+    },
+    {
+      "path": "src/agent/strategy_memory.py",
+      "blob_sha": "8b617b81065e152cdf47c2fd2d0631d8ab15dc78",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/agent/strategy_memory.py",
+      "lines": 267
+    },
+    {
+      "path": "scripts/fair_search_benchmark.py",
+      "blob_sha": "5f2701cc9b7a28bef0cd06ac7caa44abb527ebd3",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/scripts/fair_search_benchmark.py",
+      "lines": 343
+    },
+    {
+      "path": "src/agent/agent_graph.py",
+      "blob_sha": "238b84ac64ddb28ca753e5c52fde5f9e7bbb3de6",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/agent/agent_graph.py",
+      "lines": 1001
+    },
+    {
+      "path": "src/agent/search_arms.py",
+      "blob_sha": "0f5314d34465ca08a1b2e5f0f8131a010cf7a147",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/agent/search_arms.py",
+      "lines": 506
+    },
+    {
+      "path": "src/agent/policy_eval.py",
+      "blob_sha": "2125d2c5bb14b6f6dadb8dae6e153e8ff6fd440c",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/agent/policy_eval.py",
+      "lines": 157
+    },
+    {
+      "path": "src/memory/service.py",
+      "blob_sha": "8dc61315de6c17db0564f2f77a8d78b4888a55c6",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/memory/service.py",
+      "lines": 401
+    },
+    {
+      "path": "src/memory/pack.py",
+      "blob_sha": "6dd49f56b40b358349fb089b4a1ae046b059ed87",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/memory/pack.py",
+      "lines": 111
+    },
+    {
+      "path": "tests/test_holdout_split.py",
+      "blob_sha": "276d5b0de15c93912511a8ec97c1867f0051e130",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/tests/test_holdout_split.py",
+      "lines": 71
+    },
+    {
+      "path": "src/strategies/base.py",
+      "blob_sha": "66fb6b0a3bb1c19b10465a094d1a544cd6b903c1",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/strategies/base.py",
+      "lines": 214
+    },
+    {
+      "path": "src/data/user_ingest.py",
+      "blob_sha": "a0368e3eba52842af62da55b48aa3cbe96b372a5",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/data/user_ingest.py",
+      "lines": 146
+    },
+    {
+      "path": "src/agent/proposal_generator.py",
+      "blob_sha": "a0fc5c187afb5e4436184fa354301ed4cc1b2814",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/agent/proposal_generator.py",
+      "lines": 320
+    },
+    {
+      "path": "src/agent/run_manifest.py",
+      "blob_sha": "9ad31cfbf24b9d0b4eb3d272e5c93e30def51408",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/agent/run_manifest.py",
+      "lines": 120
+    },
+    {
+      "path": "src/agent/harness_config.py",
+      "blob_sha": "112d9ee5cfd0c423137d62a7e6f4be8e8255332a",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/src/agent/harness_config.py",
+      "lines": 329
+    },
+    {
+      "path": "tests/test_backtest.py",
+      "blob_sha": "aa7ea61c489def1dbbea994a6475552ebab0f201",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/tests/test_backtest.py",
+      "lines": 56
+    },
+    {
+      "path": "tests/test_metrics.py",
+      "blob_sha": "5b614237357f61521972c9c2eea13872c05eac21",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/tests/test_metrics.py",
+      "lines": 62
+    },
+    {
+      "path": "gate/tests/test_gate.py",
+      "blob_sha": "090fabe1f0ba0f39ff87f69a722c938cdf145aea",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/gate/tests/test_gate.py",
+      "lines": 30
+    },
+    {
+      "path": "tests/test_fair_search_benchmark.py",
+      "blob_sha": "3e85ce921f4c2edd5875459f563e2e41266cae09",
+      "source_url": "https://github.com/OnePunchMonk/AgentQuant/blob/830376cbca073225c955c29b7f61f4b19977ebd6/tests/test_fair_search_benchmark.py",
+      "lines": 431
+    }
+  ]
+}

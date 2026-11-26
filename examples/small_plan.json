@@ -1,0 +1,49 @@
+{
+  "question": "历史失败记忆是否帮助搜索器在相同尝试预算下选择更好的双均线策略？",
+  "data_seeds": [
+    11
+  ],
+  "episodes": 2,
+  "train_sessions": 40,
+  "validation_sessions": 10,
+  "holdout_sessions": 10,
+  "budget": 2,
+  "cost_bps": 7.0,
+  "seed": 20261124,
+  "bootstrap_samples": 199,
+  "alpha": 0.05,
+  "max_holdout_drawdown": 0.25,
+  "catalog": [
+    {
+      "id": "ma_2_8",
+      "fast": 2,
+      "slow": 8
+    },
+    {
+      "id": "ma_3_10",
+      "fast": 3,
+      "slow": 10
+    },
+    {
+      "id": "ma_4_12",
+      "fast": 4,
+      "slow": 12
+    },
+    {
+      "id": "ma_5_16",
+      "fast": 5,
+      "slow": 16
+    },
+    {
+      "id": "ma_6_20",
+      "fast": 6,
+      "slow": 20
+    },
+    {
+      "id": "ma_8_24",
+      "fast": 8,
+      "slow": 24
+    }
+  ],
+  "metric": "net_total_return"
+}

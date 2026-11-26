@@ -1,0 +1,21 @@
+{
+  "seed": 117,
+  "null": "Independent Gaussian arm returns, independent clusters; two comparisons against shared baseline; exact single-sided Bonferroni; warmup already removed",
+  "rates": {
+    "5": {
+      "replicates": 10000,
+      "familywise_rejections": 0,
+      "rate": 0.0
+    },
+    "6": {
+      "replicates": 10000,
+      "familywise_rejections": 319,
+      "rate": 0.0319
+    },
+    "10": {
+      "replicates": 10000,
+      "familywise_rejections": 430,
+      "rate": 0.043
+    }
+  }
+}
