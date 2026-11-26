@@ -30,7 +30,7 @@
     "release_date": "2025-08-07",
     "release_source": "https://openai.com/index/introducing-gpt-5/",
     "max_calls": 6000,
-    "max_cost_usd": 0.3,
+    "max_cost_usd": 0.5,
     "temperature": null,
     "reasoning_effort": "minimal",
     "provider": "openai/flex"
