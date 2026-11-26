@@ -165,3 +165,15 @@ def test_gate_evaluates_long_studies_beyond_exact_limit():
     assert memory["exact_test"]["status"] == "monte_carlo"
     assert memory["outcome"] == "research_threshold_passed"
     assert result == gate(list(reversed(rows)))
+
+
+def test_baseline_keyword_preserves_moving_average_output():
+    rows = sample_rows()
+    old = paired_gate(rows, ARMS, 499, 42, 0.05, 0.25)
+    explicit = paired_gate(rows, ARMS, 499, 42, 0.05, 0.25, baseline="ordered")
+    assert old == explicit
+    renamed = [{**r, "arm": "library" if r["arm"] == "ordered" else r["arm"]} for r in rows]
+    new = paired_gate(
+        renamed, ("library", "random", "memory"), 499, 42, 0.05, 0.25, baseline="library"
+    )
+    assert new == old

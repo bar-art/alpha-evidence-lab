@@ -7,6 +7,7 @@ import numpy as np
 
 from .factor_arms import CLASSIC_EXPRESSIONS, normalize, search_arm
 from .factor_eval import evaluate_factor
+from .inference import paired_gate
 from .ledger import Ledger
 from .llm import MAX_FLAG_RETRIES, MAX_REPAIRS, OpenRouterClient
 from .models import FactorPlan, canonical, digest
@@ -47,12 +48,18 @@ def episodes(panel: Panel, plan: FactorPlan) -> list[dict[str, Any]]:
 
 
 def factor_gate(rows: list[dict[str, Any]], plan: FactorPlan) -> dict[str, Any]:
-    # T4 connects the existing significance test once its baseline keyword is available.
-    return {
-        "outcome": "not_evaluated",
-        "reason": "Library-baseline interface pending T4",
-        "rows": len(rows),
-    }
+    return paired_gate(
+        rows,
+        plan.arms,
+        1999,
+        plan.seed,
+        plan.alpha,
+        plan.max_holdout_drawdown,
+        plan.minimum_paths,
+        cluster_unit="time_blocks",
+        warmup_episodes=plan.warmup_episodes,
+        baseline="library",
+    )
 
 
 def run_factor_study(
