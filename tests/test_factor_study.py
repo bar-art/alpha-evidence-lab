@@ -1,0 +1,241 @@
+import csv
+import json
+import sqlite3
+from dataclasses import replace
+from datetime import date
+
+import numpy as np
+import pytest
+
+from alpha_evidence_lab.cli import main
+from alpha_evidence_lab.factor_study import episodes, run_factor_study
+from alpha_evidence_lab.models import FactorPlan
+from alpha_evidence_lab.panel import Panel, load_panel
+from alpha_evidence_lab.report import export_factor
+
+
+def random_panel(days=480, stocks=35):
+    rng = np.random.default_rng(42)
+    prices = 10 * np.exp(np.cumsum(rng.normal(0, 0.02, (days, stocks)), axis=0))
+    shape = prices.shape
+    return Panel(
+        np.arange(np.datetime64("2024-01-01"), np.datetime64("2024-01-01") + days),
+        tuple(f"S{i:03d}" for i in range(stocks)),
+        {
+            "open": prices,
+            "close": prices,
+            "high": prices * 1.01,
+            "low": prices * 0.99,
+            "volume": np.exp(rng.normal(10, 0.5, shape)),
+        },
+        np.zeros(shape, bool),
+        np.ones(shape, bool),
+        prices * 2,
+        prices * 0.5,
+        np.ones(shape, bool),
+        "synthetic-fixture",
+        "Synthetic test only",
+    )
+
+
+def write_panel(p, root, reverse=False):
+    root.mkdir()
+    keys = [
+        "ts_code",
+        "trade_date",
+        "available_at",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "is_suspended",
+        "up_limit",
+        "down_limit",
+        "price_limit_exempt",
+        "universe_member",
+    ]
+    rows = [
+        {
+            "ts_code": symbol,
+            "trade_date": str(day),
+            "available_at": str(day) + "T15:00:00+08:00",
+            **{k: float(v[t, n]) for k, v in p.fields.items()},
+            "is_suspended": False,
+            "up_limit": 100000,
+            "down_limit": 0.0001,
+            "price_limit_exempt": True,
+            "universe_member": True,
+        }
+        for t, day in enumerate(p.dates)
+        for n, symbol in enumerate(p.symbols)
+    ]
+    with (root / "bars.csv").open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=keys)
+        writer.writeheader()
+        writer.writerows(rows[::-1] if reverse else rows)
+    (root / "manifest.json").write_text(json.dumps({"source": "Synthetic offline fixture"}))
+    return root / "bars.csv", root / "manifest.json"
+
+
+def test_calendar_boundaries_and_confirmation():
+    p = random_panel()
+    plan = FactorPlan(confirm_start=p.dates[395].astype(object), max_episodes=3)
+    schedule = episodes(p, plan)
+    assert schedule[0]["test_start"] == 375
+    assert schedule[0]["test_start"] - schedule[0]["dev_stop"] == 5
+    assert schedule[0]["dev_stop"] - schedule[0]["dev_start"] == 120
+    assert schedule[0]["test_stop"] == schedule[1]["test_start"]
+    assert [r["phase"] for r in schedule] == ["exploration", "exploration", "confirmation"]
+    assert (
+        len(episodes(p, plan.model_copy(update={"confirmation_only": True, "max_episodes": 1})))
+        == 1
+    )
+    with pytest.raises(ValueError):
+        episodes(p.window(0, 300), plan)
+    with pytest.raises(ValueError):
+        FactorPlan(holdout_sessions=5, horizon=5)
+
+
+def test_joint_freeze_and_replay(tmp_path, monkeypatch):
+    import alpha_evidence_lab.factor_study as module
+
+    actual = module.evaluate_factor
+    out = tmp_path / "study"
+
+    def checked(*args, **kwargs):
+        with sqlite3.connect(out / "audit.sqlite") as db:
+            state = db.execute("SELECT state FROM batches ORDER BY rowid DESC LIMIT 1").fetchone()[
+                0
+            ]
+        assert state == "frozen"
+        return actual(*args, **kwargs)
+
+    monkeypatch.setattr(module, "evaluate_factor", checked)
+    plan = FactorPlan(budget=2, max_episodes=2, confirm_start=date(2020, 1, 1))
+    first = run_factor_study(plan, random_panel(), out)
+    assert len(first["trials"]) == 8 and len(first["results"]) == 4
+    assert all(len(r["metrics"]["period_returns"]) == 3 for r in first["results"])
+    export_factor(first, out)
+    assert main(["verify", "--output", str(out)]) == 0
+    with (out / "attempts.csv").open("a") as handle:
+        handle.write("tampered")
+    assert main(["verify", "--output", str(out)]) == 1
+
+
+def test_cli_and_input_order_do_not_change_selection(tmp_path):
+    p = random_panel()
+    a = write_panel(p, tmp_path / "a")
+    b = write_panel(p, tmp_path / "b", True)
+    plan = FactorPlan(budget=2, max_episodes=1, confirm_start=date(2020, 1, 1))
+    config = tmp_path / "config.json"
+    config.write_text(plan.model_dump_json())
+    assert (
+        main(
+            [
+                "factor-study",
+                "--bars",
+                str(a[0]),
+                "--manifest",
+                str(a[1]),
+                "--config",
+                str(config),
+                "--output",
+                str(tmp_path / "cli"),
+            ]
+        )
+        == 0
+    )
+    results = [
+        run_factor_study(plan, load_panel(*files), tmp_path / f"run{i}")
+        for i, files in enumerate([a, b])
+    ]
+    assert results[0]["results"] == results[1]["results"]
+    assert [(r["candidate"], r["score"]) for r in results[0]["trials"]] == [
+        (r["candidate"], r["score"]) for r in results[1]["trials"]
+    ]
+
+
+def test_development_score_does_not_read_sealed_prices(tmp_path):
+    p = random_panel()
+    plan = FactorPlan(budget=2, max_episodes=1)
+    modified = {k: v.copy() for k, v in p.fields.items()}
+    modified["open"][375:] *= 1.2
+    modified["close"][375:] *= 1.2
+    a = run_factor_study(plan, p, tmp_path / "a")
+    b = run_factor_study(plan, replace(p, fields=modified), tmp_path / "b")
+    assert [(r["candidate"], r["score"]) for r in a["trials"]] == [
+        (r["candidate"], r["score"]) for r in b["trials"]
+    ]
+
+
+def test_pilot_preserves_global_episode_ids_and_requires_pricing(tmp_path, monkeypatch):
+    from alpha_evidence_lab.llm import LlmBudgetError
+    from alpha_evidence_lab.models import LlmSettings
+
+    p = random_panel()
+    base = FactorPlan(confirm_start=p.dates[395].astype(object))
+    full = episodes(p, base)
+    pilot = episodes(p, base.model_copy(update={"confirmation_only": True, "max_episodes": 1}))
+    assert pilot[0]["episode"] == next(e["episode"] for e in full if e["phase"] == "confirmation")
+    model = LlmSettings(
+        model="fixture/model",
+        release_date=date(2019, 1, 1),
+        release_source="https://example.invalid",
+    )
+    plan = base.model_copy(update={"llm": model, "max_episodes": 1})
+    monkeypatch.setattr("alpha_evidence_lab.factor_study.fetch_pricing", lambda *args: None)
+    with pytest.raises(LlmBudgetError, match="no paid"):
+        run_factor_study(plan, p, tmp_path / "blocked")
+    assert not (tmp_path / "blocked").exists()
+
+
+def test_v2_tree_end_to_end_and_all_missing_ic_summary(tmp_path):
+    from alpha_evidence_lab.factor_arms import CLASSIC_EXPRESSIONS
+    from alpha_evidence_lab.factor_tree import expression_tree
+    from alpha_evidence_lab.llm import OpenRouterClient
+    from alpha_evidence_lab.models import LlmSettings
+
+    model = LlmSettings(
+        model="fixture/model",
+        release_date=date(2020, 1, 1),
+        release_source="https://example.invalid",
+    )
+    calls = []
+
+    def transport(body, key):
+        request = json.loads(body["messages"][1]["content"])
+        calls.append(request)
+        index = 5 - request["attempts_remaining"]
+        aliases = request["prior_development_evidence"]
+        idea = {
+            "hypothesis": "h",
+            "tree": expression_tree(CLASSIC_EXPRESSIONS[index]),
+            "failure_conditions": "f",
+            "evidence_ids": [aliases[0]["evidence_id"]] if aliases else ["none"],
+        }
+        return {"choices": [{"message": {"content": json.dumps(idea)}}], "usage": {"cost": 0}}
+
+    client = OpenRouterClient(
+        model,
+        tmp_path / "cache",
+        1,
+        api_key="fixture",
+        transport=transport,
+        pricing={"prompt": 0.0, "completion": 0.0},
+    )
+    plan = FactorPlan(llm=model, confirm_start=date(2021, 1, 1), max_episodes=2)
+    result = run_factor_study(plan, random_panel(), tmp_path / "run", client=client)
+    export_factor(result, tmp_path / "run")
+    assert len(result["batches"]) == 2 and client.calls == 10
+    assert result["registration"]["prompt_version"] == "v2-tree"
+    assert main(["verify", "--output", str(tmp_path / "run")]) == 0
+    assert all("holdout" not in json.dumps(r) and "S000" not in json.dumps(r) for r in calls)
+    assert calls[5]["prior_development_evidence"]
+    # A report must retain all-missing IC as null, even for externally supplied results.
+    for r in result["results"]:
+        r["metrics"].update(ic_mean=None, ic_observations=0, ic_valid_days=0)
+    report = tmp_path / "missing-report"
+    report.mkdir()
+    export_factor(result, report)
+    assert all(r["mean_test_ic"] is None and r["ic_observations"] == 0 for r in result["summary"])

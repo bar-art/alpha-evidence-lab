@@ -1,0 +1,1036 @@
+{
+  "protocol": "v3-settlement",
+  "scope": "free library/random reference control; no LLM primary comparison",
+  "rounds": 121,
+  "phase_counts": {
+    "exploration": 110,
+    "confirmation": 11
+  },
+  "date_exclusions": [
+    {
+      "episode": 0,
+      "reason": "insufficient_warmup",
+      "required_settlement_stop": 410,
+      "test_end_date": "2016-08-12",
+      "test_start": 375,
+      "test_start_date": "2016-07-18",
+      "test_stop": 395
+    },
+    {
+      "episode": 111,
+      "reason": "previously_revealed_pilot",
+      "test_end_date": "2025-10-09",
+      "test_start": 2595,
+      "test_start_date": "2025-09-04",
+      "test_stop": 2615
+    },
+    {
+      "episode": 112,
+      "reason": "previously_revealed_pilot",
+      "test_end_date": "2025-11-06",
+      "test_start": 2615,
+      "test_start_date": "2025-10-10",
+      "test_stop": 2635
+    },
+    {
+      "episode": 124,
+      "reason": "incomplete_settlement",
+      "required_settlement_stop": 2890,
+      "test_end_date": "2026-11-04",
+      "test_start": 2855,
+      "test_start_date": "2026-10-08",
+      "test_stop": 2875
+    }
+  ],
+  "summary": [
+    {
+      "confirmation_rounds": 11,
+      "duplicate_rate": 0.0,
+      "failure_rate": 0.0,
+      "ic_observations": 44,
+      "ic_valid_days": 209,
+      "library_expression_equivalence": 1.0,
+      "mean_test_ic": -0.009293012625743063,
+      "mean_test_return": -0.021767989603723968,
+      "method": "library",
+      "trials": 605
+    },
+    {
+      "confirmation_rounds": 11,
+      "duplicate_rate": 0.0,
+      "failure_rate": 0.0,
+      "ic_observations": 44,
+      "ic_valid_days": 209,
+      "library_expression_equivalence": 0.0,
+      "mean_test_ic": 0.009378640532491454,
+      "mean_test_return": -0.009625899630422263,
+      "method": "random",
+      "trials": 605
+    }
+  ],
+  "gate": {
+    "assumption": "独立簇差值在零假设下联合符号对称/可交换；均值相等本身不足以保证有效性",
+    "bootstrap_samples_unused": true,
+    "cluster_members": {
+      "time_block_0": [
+        [
+          "market_panel",
+          113
+        ]
+      ],
+      "time_block_1": [
+        [
+          "market_panel",
+          114
+        ]
+      ],
+      "time_block_10": [
+        [
+          "market_panel",
+          123
+        ]
+      ],
+      "time_block_2": [
+        [
+          "market_panel",
+          115
+        ]
+      ],
+      "time_block_3": [
+        [
+          "market_panel",
+          116
+        ]
+      ],
+      "time_block_4": [
+        [
+          "market_panel",
+          117
+        ]
+      ],
+      "time_block_5": [
+        [
+          "market_panel",
+          118
+        ]
+      ],
+      "time_block_6": [
+        [
+          "market_panel",
+          119
+        ]
+      ],
+      "time_block_7": [
+        [
+          "market_panel",
+          120
+        ]
+      ],
+      "time_block_8": [
+        [
+          "market_panel",
+          121
+        ]
+      ],
+      "time_block_9": [
+        [
+          "market_panel",
+          122
+        ]
+      ]
+    },
+    "cluster_unit": "time_blocks",
+    "clusters": 11,
+    "comparisons": [
+      {
+        "arm": "random",
+        "comparison_role": "previously_observed_reference_only",
+        "exact_test": {
+          "informative_clusters": 11,
+          "p_value": 0.310546875,
+          "permutations": 2048,
+          "smallest_attainable_p": 0.00048828125,
+          "status": "exact"
+        },
+        "interval": null,
+        "max_episode_drawdown": 0.07593416683313503,
+        "mean_net_return_delta": 0.012142089973301705,
+        "numeric_gate_outcome": "not_promoted",
+        "outcome": "reference_only",
+        "p_corrected": 0.310546875,
+        "p_raw": 0.310546875,
+        "planned_family_adjusted_p": 0.62109375
+      }
+    ],
+    "excluded_cells_per_arm": 0,
+    "family_size": 1,
+    "method": "cluster_sign_flip_bonferroni_one_sided",
+    "minimum_clusters": 6,
+    "monte_carlo_seed": 20261126,
+    "outcome": "evaluated",
+    "paired_cells_per_arm": 11,
+    "planned_family_size": 2,
+    "primary_comparison": "llm versus library; confirmation only",
+    "primary_observed_in_this_run": false,
+    "reason": "p值仅在所述簇独立与符号对称假设下有效；不是实盘授权",
+    "smallest_possible_corrected_p": 0.00048828125,
+    "test": "exact_up_to_20_nonzero_clusters_else_monte_carlo_99999",
+    "warmup_episodes": 0
+  },
+  "exploration_gate": {
+    "assumption": "独立簇差值在零假设下联合符号对称/可交换；均值相等本身不足以保证有效性",
+    "bootstrap_samples_unused": true,
+    "cluster_members": {
+      "time_block_0": [
+        [
+          "market_panel",
+          1
+        ]
+      ],
+      "time_block_1": [
+        [
+          "market_panel",
+          2
+        ]
+      ],
+      "time_block_10": [
+        [
+          "market_panel",
+          11
+        ]
+      ],
+      "time_block_100": [
+        [
+          "market_panel",
+          101
+        ]
+      ],
+      "time_block_101": [
+        [
+          "market_panel",
+          102
+        ]
+      ],
+      "time_block_102": [
+        [
+          "market_panel",
+          103
+        ]
+      ],
+      "time_block_103": [
+        [
+          "market_panel",
+          104
+        ]
+      ],
+      "time_block_104": [
+        [
+          "market_panel",
+          105
+        ]
+      ],
+      "time_block_105": [
+        [
+          "market_panel",
+          106
+        ]
+      ],
+      "time_block_106": [
+        [
+          "market_panel",
+          107
+        ]
+      ],
+      "time_block_107": [
+        [
+          "market_panel",
+          108
+        ]
+      ],
+      "time_block_108": [
+        [
+          "market_panel",
+          109
+        ]
+      ],
+      "time_block_109": [
+        [
+          "market_panel",
+          110
+        ]
+      ],
+      "time_block_11": [
+        [
+          "market_panel",
+          12
+        ]
+      ],
+      "time_block_12": [
+        [
+          "market_panel",
+          13
+        ]
+      ],
+      "time_block_13": [
+        [
+          "market_panel",
+          14
+        ]
+      ],
+      "time_block_14": [
+        [
+          "market_panel",
+          15
+        ]
+      ],
+      "time_block_15": [
+        [
+          "market_panel",
+          16
+        ]
+      ],
+      "time_block_16": [
+        [
+          "market_panel",
+          17
+        ]
+      ],
+      "time_block_17": [
+        [
+          "market_panel",
+          18
+        ]
+      ],
+      "time_block_18": [
+        [
+          "market_panel",
+          19
+        ]
+      ],
+      "time_block_19": [
+        [
+          "market_panel",
+          20
+        ]
+      ],
+      "time_block_2": [
+        [
+          "market_panel",
+          3
+        ]
+      ],
+      "time_block_20": [
+        [
+          "market_panel",
+          21
+        ]
+      ],
+      "time_block_21": [
+        [
+          "market_panel",
+          22
+        ]
+      ],
+      "time_block_22": [
+        [
+          "market_panel",
+          23
+        ]
+      ],
+      "time_block_23": [
+        [
+          "market_panel",
+          24
+        ]
+      ],
+      "time_block_24": [
+        [
+          "market_panel",
+          25
+        ]
+      ],
+      "time_block_25": [
+        [
+          "market_panel",
+          26
+        ]
+      ],
+      "time_block_26": [
+        [
+          "market_panel",
+          27
+        ]
+      ],
+      "time_block_27": [
+        [
+          "market_panel",
+          28
+        ]
+      ],
+      "time_block_28": [
+        [
+          "market_panel",
+          29
+        ]
+      ],
+      "time_block_29": [
+        [
+          "market_panel",
+          30
+        ]
+      ],
+      "time_block_3": [
+        [
+          "market_panel",
+          4
+        ]
+      ],
+      "time_block_30": [
+        [
+          "market_panel",
+          31
+        ]
+      ],
+      "time_block_31": [
+        [
+          "market_panel",
+          32
+        ]
+      ],
+      "time_block_32": [
+        [
+          "market_panel",
+          33
+        ]
+      ],
+      "time_block_33": [
+        [
+          "market_panel",
+          34
+        ]
+      ],
+      "time_block_34": [
+        [
+          "market_panel",
+          35
+        ]
+      ],
+      "time_block_35": [
+        [
+          "market_panel",
+          36
+        ]
+      ],
+      "time_block_36": [
+        [
+          "market_panel",
+          37
+        ]
+      ],
+      "time_block_37": [
+        [
+          "market_panel",
+          38
+        ]
+      ],
+      "time_block_38": [
+        [
+          "market_panel",
+          39
+        ]
+      ],
+      "time_block_39": [
+        [
+          "market_panel",
+          40
+        ]
+      ],
+      "time_block_4": [
+        [
+          "market_panel",
+          5
+        ]
+      ],
+      "time_block_40": [
+        [
+          "market_panel",
+          41
+        ]
+      ],
+      "time_block_41": [
+        [
+          "market_panel",
+          42
+        ]
+      ],
+      "time_block_42": [
+        [
+          "market_panel",
+          43
+        ]
+      ],
+      "time_block_43": [
+        [
+          "market_panel",
+          44
+        ]
+      ],
+      "time_block_44": [
+        [
+          "market_panel",
+          45
+        ]
+      ],
+      "time_block_45": [
+        [
+          "market_panel",
+          46
+        ]
+      ],
+      "time_block_46": [
+        [
+          "market_panel",
+          47
+        ]
+      ],
+      "time_block_47": [
+        [
+          "market_panel",
+          48
+        ]
+      ],
+      "time_block_48": [
+        [
+          "market_panel",
+          49
+        ]
+      ],
+      "time_block_49": [
+        [
+          "market_panel",
+          50
+        ]
+      ],
+      "time_block_5": [
+        [
+          "market_panel",
+          6
+        ]
+      ],
+      "time_block_50": [
+        [
+          "market_panel",
+          51
+        ]
+      ],
+      "time_block_51": [
+        [
+          "market_panel",
+          52
+        ]
+      ],
+      "time_block_52": [
+        [
+          "market_panel",
+          53
+        ]
+      ],
+      "time_block_53": [
+        [
+          "market_panel",
+          54
+        ]
+      ],
+      "time_block_54": [
+        [
+          "market_panel",
+          55
+        ]
+      ],
+      "time_block_55": [
+        [
+          "market_panel",
+          56
+        ]
+      ],
+      "time_block_56": [
+        [
+          "market_panel",
+          57
+        ]
+      ],
+      "time_block_57": [
+        [
+          "market_panel",
+          58
+        ]
+      ],
+      "time_block_58": [
+        [
+          "market_panel",
+          59
+        ]
+      ],
+      "time_block_59": [
+        [
+          "market_panel",
+          60
+        ]
+      ],
+      "time_block_6": [
+        [
+          "market_panel",
+          7
+        ]
+      ],
+      "time_block_60": [
+        [
+          "market_panel",
+          61
+        ]
+      ],
+      "time_block_61": [
+        [
+          "market_panel",
+          62
+        ]
+      ],
+      "time_block_62": [
+        [
+          "market_panel",
+          63
+        ]
+      ],
+      "time_block_63": [
+        [
+          "market_panel",
+          64
+        ]
+      ],
+      "time_block_64": [
+        [
+          "market_panel",
+          65
+        ]
+      ],
+      "time_block_65": [
+        [
+          "market_panel",
+          66
+        ]
+      ],
+      "time_block_66": [
+        [
+          "market_panel",
+          67
+        ]
+      ],
+      "time_block_67": [
+        [
+          "market_panel",
+          68
+        ]
+      ],
+      "time_block_68": [
+        [
+          "market_panel",
+          69
+        ]
+      ],
+      "time_block_69": [
+        [
+          "market_panel",
+          70
+        ]
+      ],
+      "time_block_7": [
+        [
+          "market_panel",
+          8
+        ]
+      ],
+      "time_block_70": [
+        [
+          "market_panel",
+          71
+        ]
+      ],
+      "time_block_71": [
+        [
+          "market_panel",
+          72
+        ]
+      ],
+      "time_block_72": [
+        [
+          "market_panel",
+          73
+        ]
+      ],
+      "time_block_73": [
+        [
+          "market_panel",
+          74
+        ]
+      ],
+      "time_block_74": [
+        [
+          "market_panel",
+          75
+        ]
+      ],
+      "time_block_75": [
+        [
+          "market_panel",
+          76
+        ]
+      ],
+      "time_block_76": [
+        [
+          "market_panel",
+          77
+        ]
+      ],
+      "time_block_77": [
+        [
+          "market_panel",
+          78
+        ]
+      ],
+      "time_block_78": [
+        [
+          "market_panel",
+          79
+        ]
+      ],
+      "time_block_79": [
+        [
+          "market_panel",
+          80
+        ]
+      ],
+      "time_block_8": [
+        [
+          "market_panel",
+          9
+        ]
+      ],
+      "time_block_80": [
+        [
+          "market_panel",
+          81
+        ]
+      ],
+      "time_block_81": [
+        [
+          "market_panel",
+          82
+        ]
+      ],
+      "time_block_82": [
+        [
+          "market_panel",
+          83
+        ]
+      ],
+      "time_block_83": [
+        [
+          "market_panel",
+          84
+        ]
+      ],
+      "time_block_84": [
+        [
+          "market_panel",
+          85
+        ]
+      ],
+      "time_block_85": [
+        [
+          "market_panel",
+          86
+        ]
+      ],
+      "time_block_86": [
+        [
+          "market_panel",
+          87
+        ]
+      ],
+      "time_block_87": [
+        [
+          "market_panel",
+          88
+        ]
+      ],
+      "time_block_88": [
+        [
+          "market_panel",
+          89
+        ]
+      ],
+      "time_block_89": [
+        [
+          "market_panel",
+          90
+        ]
+      ],
+      "time_block_9": [
+        [
+          "market_panel",
+          10
+        ]
+      ],
+      "time_block_90": [
+        [
+          "market_panel",
+          91
+        ]
+      ],
+      "time_block_91": [
+        [
+          "market_panel",
+          92
+        ]
+      ],
+      "time_block_92": [
+        [
+          "market_panel",
+          93
+        ]
+      ],
+      "time_block_93": [
+        [
+          "market_panel",
+          94
+        ]
+      ],
+      "time_block_94": [
+        [
+          "market_panel",
+          95
+        ]
+      ],
+      "time_block_95": [
+        [
+          "market_panel",
+          96
+        ]
+      ],
+      "time_block_96": [
+        [
+          "market_panel",
+          97
+        ]
+      ],
+      "time_block_97": [
+        [
+          "market_panel",
+          98
+        ]
+      ],
+      "time_block_98": [
+        [
+          "market_panel",
+          99
+        ]
+      ],
+      "time_block_99": [
+        [
+          "market_panel",
+          100
+        ]
+      ]
+    },
+    "cluster_unit": "time_blocks",
+    "clusters": 110,
+    "comparisons": [
+      {
+        "arm": "random",
+        "comparison_role": "previously_observed_reference_only",
+        "exact_test": {
+          "informative_clusters": 110,
+          "p_value": 0.20798,
+          "permutations": 99999,
+          "seed": 20261126,
+          "smallest_attainable_p": 1e-05,
+          "status": "monte_carlo"
+        },
+        "interval": null,
+        "max_episode_drawdown": 0.1361249783698928,
+        "mean_net_return_delta": 0.004379186260858859,
+        "numeric_gate_outcome": "not_promoted",
+        "outcome": "reference_only",
+        "p_corrected": 0.20798,
+        "p_raw": 0.20798,
+        "planned_family_adjusted_p": 0.41596
+      }
+    ],
+    "excluded_cells_per_arm": 0,
+    "family_size": 1,
+    "method": "cluster_sign_flip_bonferroni_one_sided",
+    "minimum_clusters": 6,
+    "monte_carlo_seed": 20261126,
+    "outcome": "evaluated",
+    "paired_cells_per_arm": 110,
+    "planned_family_size": 2,
+    "primary_comparison": "llm versus library; confirmation only",
+    "primary_observed_in_this_run": false,
+    "reason": "p值仅在所述簇独立与符号对称假设下有效；不是实盘授权",
+    "smallest_possible_corrected_p": 1e-05,
+    "test": "exact_up_to_20_nonzero_clusters_else_monte_carlo_99999",
+    "warmup_episodes": 0
+  },
+  "power": {
+    "assumptions": "independent jointly sign-symmetric blocks; nonzero differences; overlapping settlement windows do not establish these assumptions",
+    "confirmation_blocks": 11,
+    "effect_sensitivity": [
+      {
+        "approx_mean_block_effect_for_80pct_power": 0.10627290945276405,
+        "assumed_arm_correlation": 0.0,
+        "paired_difference_sd_proxy": 0.1258099749225688
+      },
+      {
+        "approx_mean_block_effect_for_80pct_power": 0.0751462949304734,
+        "assumed_arm_correlation": 0.5,
+        "paired_difference_sd_proxy": 0.08896108640865788
+      },
+      {
+        "approx_mean_block_effect_for_80pct_power": 0.03360644474435727,
+        "assumed_arm_correlation": 0.9,
+        "paired_difference_sd_proxy": 0.03978460731239832
+      }
+    ],
+    "minimum_corrected_exact_p_if_all_nonzero": 0.0009765625,
+    "minimum_raw_exact_p_if_all_nonzero": 0.00048828125,
+    "planned_family_size": 2,
+    "power_method": "normal approximation at one-sided alpha/2 and 80% power; not exact finite-sample sign-flip power or a performance forecast",
+    "reference": "post-hoc v2 library confirmation returns; not SD of paired LLM differences",
+    "reference_sd": 0.08896108640865788
+  },
+  "paid_calls": 0,
+  "code_hash": "d050e76063645846212b4f3afc4a8a882aac06cd14050a4671fbbfc6b1a526cb",
+  "data_hash": "eefbad8b7920b183b26076778ee31e5f7124671401d1017ffcbcba543ffa70a5",
+  "registration_to_report_seconds": 285.34664487838745,
+  "diagnostics": [
+    {
+      "arm": "library",
+      "phase": "all",
+      "certain_rounds": 121,
+      "boundary_unknown_positions": 0,
+      "boundary_unknown_labels": 0,
+      "exit_unresolved_selected_positions": 28,
+      "delayed_selected_positions": 97,
+      "failed_attempts_all_phases": 0,
+      "random_precheck_redraws_all_phases": 0,
+      "random_precheck_rejection_reasons_all_phases": {}
+    },
+    {
+      "arm": "library",
+      "phase": "confirmation",
+      "certain_rounds": 11,
+      "boundary_unknown_positions": 0,
+      "boundary_unknown_labels": 0,
+      "exit_unresolved_selected_positions": 2,
+      "delayed_selected_positions": 6,
+      "failed_attempts_all_phases": 0,
+      "random_precheck_redraws_all_phases": 0,
+      "random_precheck_rejection_reasons_all_phases": {}
+    },
+    {
+      "arm": "random",
+      "phase": "all",
+      "certain_rounds": 121,
+      "boundary_unknown_positions": 0,
+      "boundary_unknown_labels": 0,
+      "exit_unresolved_selected_positions": 26,
+      "delayed_selected_positions": 94,
+      "failed_attempts_all_phases": 0,
+      "random_precheck_redraws_all_phases": 242,
+      "random_precheck_rejection_reasons_all_phases": {
+        "constant_cross_section_on_all_development_days": 129,
+        "coverage_below_70_percent": 58,
+        "duplicate": 55
+      }
+    },
+    {
+      "arm": "random",
+      "phase": "confirmation",
+      "certain_rounds": 11,
+      "boundary_unknown_positions": 0,
+      "boundary_unknown_labels": 0,
+      "exit_unresolved_selected_positions": 3,
+      "delayed_selected_positions": 4,
+      "failed_attempts_all_phases": 0,
+      "random_precheck_redraws_all_phases": 242,
+      "random_precheck_rejection_reasons_all_phases": {
+        "constant_cross_section_on_all_development_days": 129,
+        "coverage_below_70_percent": 58,
+        "duplicate": 55
+      }
+    }
+  ],
+  "matched_date_comparison": [
+    {
+      "protocol": "v1",
+      "arm": "library",
+      "cohort_rounds": 11,
+      "certain_rounds": 11,
+      "mean_return_if_certain": -0.03478707200409147
+    },
+    {
+      "protocol": "v1",
+      "arm": "random",
+      "cohort_rounds": 11,
+      "certain_rounds": 11,
+      "mean_return_if_certain": -0.030430320783353462
+    },
+    {
+      "protocol": "v2",
+      "arm": "library",
+      "cohort_rounds": 11,
+      "certain_rounds": 9,
+      "mean_return_if_certain": -0.04610170407048378
+    },
+    {
+      "protocol": "v2",
+      "arm": "random",
+      "cohort_rounds": 11,
+      "certain_rounds": 10,
+      "mean_return_if_certain": 0.009636150818498435
+    },
+    {
+      "protocol": "v3",
+      "arm": "library",
+      "cohort_rounds": 11,
+      "certain_rounds": 11,
+      "mean_return_if_certain": -0.021767989603723968
+    },
+    {
+      "protocol": "v3",
+      "arm": "random",
+      "cohort_rounds": 11,
+      "certain_rounds": 11,
+      "mean_return_if_certain": -0.009625899630422263
+    }
+  ],
+  "command": "python -m alpha_evidence_lab.cli factor-study --bars ../a-share-quant-agent/output/export_qrl_hs300_tushare_2015_2026_v2/bars.csv --manifest ../a-share-quant-agent/output/export_qrl_hs300_tushare_2015_2026_v2/manifest.json --config config/factor_hs300_v3.json --output output/factor-hs300-norm-v3",
+  "artifact_hashes": {
+    "attempts.csv": "1689c6a459c96b1896769c7d06d9c39c1d5c6f6e8d304bb3df59629cce765b3e",
+    "audit.sqlite": "3031202c5ecc389fb31a1ea817cef7a561eb5cda00b87d258b1d57a22c7079df",
+    "checkpoint.json": "413351e86cacd514828ad8726b38d8380c8c6e547c2e916730e2e9ec4ad39876",
+    "holdout_results.csv": "eb4d9627f74a2a62950383694215d9e5a1dc0e9f0d154e6f406b2b5597aa1f62",
+    "registration.json": "049c96611406f6c4b5b2bb1cea0027971b07a9229d932ade45fc41c374884fcb",
+    "report.html": "312c0f2509eb8120c23788ef3b99438bfd2ebb427d53cf6dbdaa9c7df8d06e2b",
+    "study.json": "7680984b23cc12eadaf6e6ddf648f90e9b4584623c7fd428cea6f49247e57ef9"
+  },
+  "interpretation": "Numeric sign-flip p conditional on block independence/sign symmetry. Settlement overlap can induce dependence. Random comparison previously observed, reference only.",
+  "counter_fix_comparison": {
+    "compared_attempts": 1132,
+    "all_common_candidates_statuses_scores_equal": true,
+    "compared_method_episode_outcomes": 226,
+    "all_common_returns_drawdowns_entries_equal": true,
+    "interpretation": "Only the calendar-ineligible entry counters changed; observed protocol metadata also disclosed the interrupted run."
+  },
+  "verification": "alpha-lab verify passed: event chain, state projection, artifact hashes"
+}

@@ -1,0 +1,1173 @@
+{
+  "task": "S6",
+  "status": "completed",
+  "approved_cap_usd": 0.5,
+  "automatic_restart": false,
+  "git_commit": "5b8b3dd327e3c9478817f7509407c21d1b2b78d0",
+  "planned_rounds": 121,
+  "planned_confirmation_rounds": 11,
+  "planned_logical_proposals": 605,
+  "completed_batches": 121,
+  "summary": [
+    {
+      "method": "library",
+      "confirmation_rounds": 11,
+      "mean_test_return": -0.021767989603723968,
+      "mean_test_ic": -0.009293012625743063,
+      "ic_observations": 44,
+      "ic_valid_days": 209,
+      "trials": 605,
+      "failure_rate": 0.0,
+      "duplicate_rate": 0.0,
+      "library_expression_equivalence": 1.0
+    },
+    {
+      "method": "random",
+      "confirmation_rounds": 11,
+      "mean_test_return": -0.009625899630422263,
+      "mean_test_ic": 0.009378640532491454,
+      "ic_observations": 44,
+      "ic_valid_days": 209,
+      "trials": 605,
+      "failure_rate": 0.0,
+      "duplicate_rate": 0.0,
+      "library_expression_equivalence": 0.0
+    },
+    {
+      "method": "llm",
+      "confirmation_rounds": 11,
+      "mean_test_return": -0.02295395367647919,
+      "mean_test_ic": -0.029409838839603738,
+      "ic_observations": 44,
+      "ic_valid_days": 209,
+      "trials": 605,
+      "failure_rate": 0.3950413223140496,
+      "duplicate_rate": 0.32727272727272727,
+      "library_expression_equivalence": 0.0
+    }
+  ],
+  "gate": {
+    "method": "cluster_sign_flip_bonferroni_one_sided",
+    "test": "exact_up_to_20_nonzero_clusters_else_monte_carlo_99999",
+    "cluster_unit": "time_blocks",
+    "clusters": 11,
+    "minimum_clusters": 6,
+    "family_size": 2,
+    "paired_cells_per_arm": 11,
+    "warmup_episodes": 0,
+    "excluded_cells_per_arm": 0,
+    "comparisons": [
+      {
+        "arm": "random",
+        "mean_net_return_delta": 0.012142089973301705,
+        "p_raw": 0.310546875,
+        "p_corrected": 0.62109375,
+        "exact_test": {
+          "status": "exact",
+          "p_value": 0.310546875,
+          "informative_clusters": 11,
+          "permutations": 2048,
+          "smallest_attainable_p": 0.00048828125
+        },
+        "interval": null,
+        "max_episode_drawdown": 0.07593416683313503,
+        "outcome": "reference_only",
+        "comparison_role": "previously_observed_reference_only",
+        "planned_family_adjusted_p": 0.62109375,
+        "numeric_gate_outcome": "not_promoted"
+      },
+      {
+        "arm": "llm",
+        "mean_net_return_delta": -0.001185964072755225,
+        "p_raw": 0.52734375,
+        "p_corrected": 1.0,
+        "exact_test": {
+          "status": "exact",
+          "p_value": 0.52734375,
+          "informative_clusters": 11,
+          "permutations": 2048,
+          "smallest_attainable_p": 0.00048828125
+        },
+        "interval": null,
+        "max_episode_drawdown": 0.14940163276990526,
+        "outcome": "not_promoted",
+        "comparison_role": "primary",
+        "planned_family_adjusted_p": 1.0
+      }
+    ],
+    "cluster_members": {
+      "time_block_0": [
+        [
+          "market_panel",
+          113
+        ]
+      ],
+      "time_block_1": [
+        [
+          "market_panel",
+          114
+        ]
+      ],
+      "time_block_10": [
+        [
+          "market_panel",
+          123
+        ]
+      ],
+      "time_block_2": [
+        [
+          "market_panel",
+          115
+        ]
+      ],
+      "time_block_3": [
+        [
+          "market_panel",
+          116
+        ]
+      ],
+      "time_block_4": [
+        [
+          "market_panel",
+          117
+        ]
+      ],
+      "time_block_5": [
+        [
+          "market_panel",
+          118
+        ]
+      ],
+      "time_block_6": [
+        [
+          "market_panel",
+          119
+        ]
+      ],
+      "time_block_7": [
+        [
+          "market_panel",
+          120
+        ]
+      ],
+      "time_block_8": [
+        [
+          "market_panel",
+          121
+        ]
+      ],
+      "time_block_9": [
+        [
+          "market_panel",
+          122
+        ]
+      ]
+    },
+    "assumption": "独立簇差值在零假设下联合符号对称/可交换；均值相等本身不足以保证有效性",
+    "bootstrap_samples_unused": true,
+    "monte_carlo_seed": 20261126,
+    "smallest_possible_corrected_p": 0.0009765625,
+    "outcome": "evaluated",
+    "reason": "p值仅在所述簇独立与符号对称假设下有效；不是实盘授权",
+    "planned_family_size": 2,
+    "primary_comparison": "llm versus library; confirmation only",
+    "primary_observed_in_this_run": true
+  },
+  "exploration_gate": {
+    "method": "cluster_sign_flip_bonferroni_one_sided",
+    "test": "exact_up_to_20_nonzero_clusters_else_monte_carlo_99999",
+    "cluster_unit": "time_blocks",
+    "clusters": 110,
+    "minimum_clusters": 6,
+    "family_size": 2,
+    "paired_cells_per_arm": 110,
+    "warmup_episodes": 0,
+    "excluded_cells_per_arm": 0,
+    "comparisons": [
+      {
+        "arm": "random",
+        "mean_net_return_delta": 0.004379186260858859,
+        "p_raw": 0.20798,
+        "p_corrected": 0.41596,
+        "exact_test": {
+          "status": "monte_carlo",
+          "p_value": 0.20798,
+          "informative_clusters": 110,
+          "permutations": 99999,
+          "seed": 20261126,
+          "smallest_attainable_p": 1e-05
+        },
+        "interval": null,
+        "max_episode_drawdown": 0.1361249783698928,
+        "outcome": "reference_only",
+        "comparison_role": "previously_observed_reference_only",
+        "planned_family_adjusted_p": 0.41596,
+        "numeric_gate_outcome": "not_promoted"
+      },
+      {
+        "arm": "llm",
+        "mean_net_return_delta": -0.00015889998337754627,
+        "p_raw": 0.51109,
+        "p_corrected": 1.0,
+        "exact_test": {
+          "status": "monte_carlo",
+          "p_value": 0.51109,
+          "informative_clusters": 110,
+          "permutations": 99999,
+          "seed": 20261126,
+          "smallest_attainable_p": 1e-05
+        },
+        "interval": null,
+        "max_episode_drawdown": 0.16909026480822076,
+        "outcome": "not_promoted",
+        "comparison_role": "primary",
+        "planned_family_adjusted_p": 1.0
+      }
+    ],
+    "cluster_members": {
+      "time_block_0": [
+        [
+          "market_panel",
+          1
+        ]
+      ],
+      "time_block_1": [
+        [
+          "market_panel",
+          2
+        ]
+      ],
+      "time_block_10": [
+        [
+          "market_panel",
+          11
+        ]
+      ],
+      "time_block_100": [
+        [
+          "market_panel",
+          101
+        ]
+      ],
+      "time_block_101": [
+        [
+          "market_panel",
+          102
+        ]
+      ],
+      "time_block_102": [
+        [
+          "market_panel",
+          103
+        ]
+      ],
+      "time_block_103": [
+        [
+          "market_panel",
+          104
+        ]
+      ],
+      "time_block_104": [
+        [
+          "market_panel",
+          105
+        ]
+      ],
+      "time_block_105": [
+        [
+          "market_panel",
+          106
+        ]
+      ],
+      "time_block_106": [
+        [
+          "market_panel",
+          107
+        ]
+      ],
+      "time_block_107": [
+        [
+          "market_panel",
+          108
+        ]
+      ],
+      "time_block_108": [
+        [
+          "market_panel",
+          109
+        ]
+      ],
+      "time_block_109": [
+        [
+          "market_panel",
+          110
+        ]
+      ],
+      "time_block_11": [
+        [
+          "market_panel",
+          12
+        ]
+      ],
+      "time_block_12": [
+        [
+          "market_panel",
+          13
+        ]
+      ],
+      "time_block_13": [
+        [
+          "market_panel",
+          14
+        ]
+      ],
+      "time_block_14": [
+        [
+          "market_panel",
+          15
+        ]
+      ],
+      "time_block_15": [
+        [
+          "market_panel",
+          16
+        ]
+      ],
+      "time_block_16": [
+        [
+          "market_panel",
+          17
+        ]
+      ],
+      "time_block_17": [
+        [
+          "market_panel",
+          18
+        ]
+      ],
+      "time_block_18": [
+        [
+          "market_panel",
+          19
+        ]
+      ],
+      "time_block_19": [
+        [
+          "market_panel",
+          20
+        ]
+      ],
+      "time_block_2": [
+        [
+          "market_panel",
+          3
+        ]
+      ],
+      "time_block_20": [
+        [
+          "market_panel",
+          21
+        ]
+      ],
+      "time_block_21": [
+        [
+          "market_panel",
+          22
+        ]
+      ],
+      "time_block_22": [
+        [
+          "market_panel",
+          23
+        ]
+      ],
+      "time_block_23": [
+        [
+          "market_panel",
+          24
+        ]
+      ],
+      "time_block_24": [
+        [
+          "market_panel",
+          25
+        ]
+      ],
+      "time_block_25": [
+        [
+          "market_panel",
+          26
+        ]
+      ],
+      "time_block_26": [
+        [
+          "market_panel",
+          27
+        ]
+      ],
+      "time_block_27": [
+        [
+          "market_panel",
+          28
+        ]
+      ],
+      "time_block_28": [
+        [
+          "market_panel",
+          29
+        ]
+      ],
+      "time_block_29": [
+        [
+          "market_panel",
+          30
+        ]
+      ],
+      "time_block_3": [
+        [
+          "market_panel",
+          4
+        ]
+      ],
+      "time_block_30": [
+        [
+          "market_panel",
+          31
+        ]
+      ],
+      "time_block_31": [
+        [
+          "market_panel",
+          32
+        ]
+      ],
+      "time_block_32": [
+        [
+          "market_panel",
+          33
+        ]
+      ],
+      "time_block_33": [
+        [
+          "market_panel",
+          34
+        ]
+      ],
+      "time_block_34": [
+        [
+          "market_panel",
+          35
+        ]
+      ],
+      "time_block_35": [
+        [
+          "market_panel",
+          36
+        ]
+      ],
+      "time_block_36": [
+        [
+          "market_panel",
+          37
+        ]
+      ],
+      "time_block_37": [
+        [
+          "market_panel",
+          38
+        ]
+      ],
+      "time_block_38": [
+        [
+          "market_panel",
+          39
+        ]
+      ],
+      "time_block_39": [
+        [
+          "market_panel",
+          40
+        ]
+      ],
+      "time_block_4": [
+        [
+          "market_panel",
+          5
+        ]
+      ],
+      "time_block_40": [
+        [
+          "market_panel",
+          41
+        ]
+      ],
+      "time_block_41": [
+        [
+          "market_panel",
+          42
+        ]
+      ],
+      "time_block_42": [
+        [
+          "market_panel",
+          43
+        ]
+      ],
+      "time_block_43": [
+        [
+          "market_panel",
+          44
+        ]
+      ],
+      "time_block_44": [
+        [
+          "market_panel",
+          45
+        ]
+      ],
+      "time_block_45": [
+        [
+          "market_panel",
+          46
+        ]
+      ],
+      "time_block_46": [
+        [
+          "market_panel",
+          47
+        ]
+      ],
+      "time_block_47": [
+        [
+          "market_panel",
+          48
+        ]
+      ],
+      "time_block_48": [
+        [
+          "market_panel",
+          49
+        ]
+      ],
+      "time_block_49": [
+        [
+          "market_panel",
+          50
+        ]
+      ],
+      "time_block_5": [
+        [
+          "market_panel",
+          6
+        ]
+      ],
+      "time_block_50": [
+        [
+          "market_panel",
+          51
+        ]
+      ],
+      "time_block_51": [
+        [
+          "market_panel",
+          52
+        ]
+      ],
+      "time_block_52": [
+        [
+          "market_panel",
+          53
+        ]
+      ],
+      "time_block_53": [
+        [
+          "market_panel",
+          54
+        ]
+      ],
+      "time_block_54": [
+        [
+          "market_panel",
+          55
+        ]
+      ],
+      "time_block_55": [
+        [
+          "market_panel",
+          56
+        ]
+      ],
+      "time_block_56": [
+        [
+          "market_panel",
+          57
+        ]
+      ],
+      "time_block_57": [
+        [
+          "market_panel",
+          58
+        ]
+      ],
+      "time_block_58": [
+        [
+          "market_panel",
+          59
+        ]
+      ],
+      "time_block_59": [
+        [
+          "market_panel",
+          60
+        ]
+      ],
+      "time_block_6": [
+        [
+          "market_panel",
+          7
+        ]
+      ],
+      "time_block_60": [
+        [
+          "market_panel",
+          61
+        ]
+      ],
+      "time_block_61": [
+        [
+          "market_panel",
+          62
+        ]
+      ],
+      "time_block_62": [
+        [
+          "market_panel",
+          63
+        ]
+      ],
+      "time_block_63": [
+        [
+          "market_panel",
+          64
+        ]
+      ],
+      "time_block_64": [
+        [
+          "market_panel",
+          65
+        ]
+      ],
+      "time_block_65": [
+        [
+          "market_panel",
+          66
+        ]
+      ],
+      "time_block_66": [
+        [
+          "market_panel",
+          67
+        ]
+      ],
+      "time_block_67": [
+        [
+          "market_panel",
+          68
+        ]
+      ],
+      "time_block_68": [
+        [
+          "market_panel",
+          69
+        ]
+      ],
+      "time_block_69": [
+        [
+          "market_panel",
+          70
+        ]
+      ],
+      "time_block_7": [
+        [
+          "market_panel",
+          8
+        ]
+      ],
+      "time_block_70": [
+        [
+          "market_panel",
+          71
+        ]
+      ],
+      "time_block_71": [
+        [
+          "market_panel",
+          72
+        ]
+      ],
+      "time_block_72": [
+        [
+          "market_panel",
+          73
+        ]
+      ],
+      "time_block_73": [
+        [
+          "market_panel",
+          74
+        ]
+      ],
+      "time_block_74": [
+        [
+          "market_panel",
+          75
+        ]
+      ],
+      "time_block_75": [
+        [
+          "market_panel",
+          76
+        ]
+      ],
+      "time_block_76": [
+        [
+          "market_panel",
+          77
+        ]
+      ],
+      "time_block_77": [
+        [
+          "market_panel",
+          78
+        ]
+      ],
+      "time_block_78": [
+        [
+          "market_panel",
+          79
+        ]
+      ],
+      "time_block_79": [
+        [
+          "market_panel",
+          80
+        ]
+      ],
+      "time_block_8": [
+        [
+          "market_panel",
+          9
+        ]
+      ],
+      "time_block_80": [
+        [
+          "market_panel",
+          81
+        ]
+      ],
+      "time_block_81": [
+        [
+          "market_panel",
+          82
+        ]
+      ],
+      "time_block_82": [
+        [
+          "market_panel",
+          83
+        ]
+      ],
+      "time_block_83": [
+        [
+          "market_panel",
+          84
+        ]
+      ],
+      "time_block_84": [
+        [
+          "market_panel",
+          85
+        ]
+      ],
+      "time_block_85": [
+        [
+          "market_panel",
+          86
+        ]
+      ],
+      "time_block_86": [
+        [
+          "market_panel",
+          87
+        ]
+      ],
+      "time_block_87": [
+        [
+          "market_panel",
+          88
+        ]
+      ],
+      "time_block_88": [
+        [
+          "market_panel",
+          89
+        ]
+      ],
+      "time_block_89": [
+        [
+          "market_panel",
+          90
+        ]
+      ],
+      "time_block_9": [
+        [
+          "market_panel",
+          10
+        ]
+      ],
+      "time_block_90": [
+        [
+          "market_panel",
+          91
+        ]
+      ],
+      "time_block_91": [
+        [
+          "market_panel",
+          92
+        ]
+      ],
+      "time_block_92": [
+        [
+          "market_panel",
+          93
+        ]
+      ],
+      "time_block_93": [
+        [
+          "market_panel",
+          94
+        ]
+      ],
+      "time_block_94": [
+        [
+          "market_panel",
+          95
+        ]
+      ],
+      "time_block_95": [
+        [
+          "market_panel",
+          96
+        ]
+      ],
+      "time_block_96": [
+        [
+          "market_panel",
+          97
+        ]
+      ],
+      "time_block_97": [
+        [
+          "market_panel",
+          98
+        ]
+      ],
+      "time_block_98": [
+        [
+          "market_panel",
+          99
+        ]
+      ],
+      "time_block_99": [
+        [
+          "market_panel",
+          100
+        ]
+      ]
+    },
+    "assumption": "独立簇差值在零假设下联合符号对称/可交换；均值相等本身不足以保证有效性",
+    "bootstrap_samples_unused": true,
+    "monte_carlo_seed": 20261126,
+    "smallest_possible_corrected_p": 2e-05,
+    "outcome": "evaluated",
+    "reason": "p值仅在所述簇独立与符号对称假设下有效；不是实盘授权",
+    "planned_family_size": 2,
+    "primary_comparison": "llm versus library; confirmation only",
+    "primary_observed_in_this_run": true
+  },
+  "usage": {
+    "model": "openai/gpt-5-nano",
+    "provider_routing": "openai/flex",
+    "reasoning_effort": "minimal",
+    "release_date": "2025-08-07",
+    "release_source": "https://openai.com/index/introducing-gpt-5/",
+    "api_calls": 605,
+    "format_repairs": 0,
+    "content_filter_retries": 0,
+    "cache_hits": 0,
+    "prompt_tokens": 6242016,
+    "completion_tokens": 140730,
+    "cost_usd": 0.181938,
+    "unknown_cost_calls": 0,
+    "unknown_cost_reserved_usd": 0.0,
+    "cached_source_cost_usd": 0.0,
+    "max_cost_usd": 0.5,
+    "budget_mode": "hard_reservation",
+    "pricing_usd_per_token": {
+      "prompt": 2.5e-08,
+      "completion": 2e-07
+    },
+    "budget_exceeded": false
+  },
+  "elapsed_seconds": 1477.8506695830729,
+  "registration_call_plan": {
+    "logical_proposals": 605,
+    "max_cost_usd": 0.5,
+    "pricing_usd_per_token": {
+      "completion": 2e-07,
+      "prompt": 2.5e-08
+    },
+    "worst_case_calls": 5445
+  },
+  "attempt_counts": {
+    "library": 605,
+    "random": 605,
+    "llm": 605
+  },
+  "failure_reasons": {
+    "llm: Operator argument count mismatch": 6,
+    "llm: Duplicate normalized factor in this method/round": 198,
+    "llm: No valid non-overlapping IC observations": 5,
+    "llm: cs_zscore 只接受 1 个参数": 1,
+    "llm: ts_rank 需要 1 个序列和 1 个窗口": 15,
+    "llm: cs_rank 只接受 1 个参数": 4,
+    "llm: delta 需要 1 个序列和 1 个窗口": 2,
+    "llm: delay 需要 1 个序列和 1 个窗口": 4,
+    "llm: ts_mean 需要 1 个序列和 1 个窗口": 4
+  },
+  "revealed_batches": [
+    "factor:ep1",
+    "factor:ep2",
+    "factor:ep3",
+    "factor:ep4",
+    "factor:ep5",
+    "factor:ep6",
+    "factor:ep7",
+    "factor:ep8",
+    "factor:ep9",
+    "factor:ep10",
+    "factor:ep11",
+    "factor:ep12",
+    "factor:ep13",
+    "factor:ep14",
+    "factor:ep15",
+    "factor:ep16",
+    "factor:ep17",
+    "factor:ep18",
+    "factor:ep19",
+    "factor:ep20",
+    "factor:ep21",
+    "factor:ep22",
+    "factor:ep23",
+    "factor:ep24",
+    "factor:ep25",
+    "factor:ep26",
+    "factor:ep27",
+    "factor:ep28",
+    "factor:ep29",
+    "factor:ep30",
+    "factor:ep31",
+    "factor:ep32",
+    "factor:ep33",
+    "factor:ep34",
+    "factor:ep35",
+    "factor:ep36",
+    "factor:ep37",
+    "factor:ep38",
+    "factor:ep39",
+    "factor:ep40",
+    "factor:ep41",
+    "factor:ep42",
+    "factor:ep43",
+    "factor:ep44",
+    "factor:ep45",
+    "factor:ep46",
+    "factor:ep47",
+    "factor:ep48",
+    "factor:ep49",
+    "factor:ep50",
+    "factor:ep51",
+    "factor:ep52",
+    "factor:ep53",
+    "factor:ep54",
+    "factor:ep55",
+    "factor:ep56",
+    "factor:ep57",
+    "factor:ep58",
+    "factor:ep59",
+    "factor:ep60",
+    "factor:ep61",
+    "factor:ep62",
+    "factor:ep63",
+    "factor:ep64",
+    "factor:ep65",
+    "factor:ep66",
+    "factor:ep67",
+    "factor:ep68",
+    "factor:ep69",
+    "factor:ep70",
+    "factor:ep71",
+    "factor:ep72",
+    "factor:ep73",
+    "factor:ep74",
+    "factor:ep75",
+    "factor:ep76",
+    "factor:ep77",
+    "factor:ep78",
+    "factor:ep79",
+    "factor:ep80",
+    "factor:ep81",
+    "factor:ep82",
+    "factor:ep83",
+    "factor:ep84",
+    "factor:ep85",
+    "factor:ep86",
+    "factor:ep87",
+    "factor:ep88",
+    "factor:ep89",
+    "factor:ep90",
+    "factor:ep91",
+    "factor:ep92",
+    "factor:ep93",
+    "factor:ep94",
+    "factor:ep95",
+    "factor:ep96",
+    "factor:ep97",
+    "factor:ep98",
+    "factor:ep99",
+    "factor:ep100",
+    "factor:ep101",
+    "factor:ep102",
+    "factor:ep103",
+    "factor:ep104",
+    "factor:ep105",
+    "factor:ep106",
+    "factor:ep107",
+    "factor:ep108",
+    "factor:ep109",
+    "factor:ep110",
+    "factor:ep113",
+    "factor:ep114",
+    "factor:ep115",
+    "factor:ep116",
+    "factor:ep117",
+    "factor:ep118",
+    "factor:ep119",
+    "factor:ep120",
+    "factor:ep121",
+    "factor:ep122",
+    "factor:ep123"
+  ],
+  "secret_scan_passed": true,
+  "output": "output/factor-hs300-llm-v3",
+  "authorization": "User explicitly confirmed S6/S7 with hard cap $0.50 after a clarification in this conversation.",
+  "control_outcomes_identical": true,
+  "diagnostics": [
+    {
+      "arm": "library",
+      "phase": "all",
+      "rounds": 121,
+      "finite_returns": 121,
+      "boundary_unknown_positions": 0,
+      "exit_unresolved_positions": 28,
+      "delayed_positions": 97
+    },
+    {
+      "arm": "library",
+      "phase": "confirmation",
+      "rounds": 11,
+      "finite_returns": 11,
+      "boundary_unknown_positions": 0,
+      "exit_unresolved_positions": 2,
+      "delayed_positions": 6
+    },
+    {
+      "arm": "random",
+      "phase": "all",
+      "rounds": 121,
+      "finite_returns": 121,
+      "boundary_unknown_positions": 0,
+      "exit_unresolved_positions": 26,
+      "delayed_positions": 94
+    },
+    {
+      "arm": "random",
+      "phase": "confirmation",
+      "rounds": 11,
+      "finite_returns": 11,
+      "boundary_unknown_positions": 0,
+      "exit_unresolved_positions": 3,
+      "delayed_positions": 4
+    },
+    {
+      "arm": "llm",
+      "phase": "all",
+      "rounds": 121,
+      "finite_returns": 121,
+      "boundary_unknown_positions": 0,
+      "exit_unresolved_positions": 30,
+      "delayed_positions": 88
+    },
+    {
+      "arm": "llm",
+      "phase": "confirmation",
+      "rounds": 11,
+      "finite_returns": 11,
+      "boundary_unknown_positions": 0,
+      "exit_unresolved_positions": 2,
+      "delayed_positions": 4
+    }
+  ],
+  "total_attempts": 1815,
+  "registered_exclusions": [
+    {
+      "episode": 0,
+      "reason": "insufficient_warmup",
+      "required_settlement_stop": 410,
+      "test_end_date": "2016-08-12",
+      "test_start": 375,
+      "test_start_date": "2016-07-18",
+      "test_stop": 395
+    },
+    {
+      "episode": 111,
+      "reason": "previously_revealed_pilot",
+      "test_end_date": "2025-10-09",
+      "test_start": 2595,
+      "test_start_date": "2025-09-04",
+      "test_stop": 2615
+    },
+    {
+      "episode": 112,
+      "reason": "previously_revealed_pilot",
+      "test_end_date": "2025-11-06",
+      "test_start": 2615,
+      "test_start_date": "2025-10-10",
+      "test_stop": 2635
+    },
+    {
+      "episode": 124,
+      "reason": "incomplete_settlement",
+      "required_settlement_stop": 2890,
+      "test_end_date": "2026-11-04",
+      "test_start": 2855,
+      "test_start_date": "2026-10-08",
+      "test_stop": 2875
+    }
+  ],
+  "code_hash": "d050e76063645846212b4f3afc4a8a882aac06cd14050a4671fbbfc6b1a526cb",
+  "data_hash": "eefbad8b7920b183b26076778ee31e5f7124671401d1017ffcbcba543ffa70a5",
+  "registration_to_report_seconds": 1466.0014667510986,
+  "verification": "alpha-lab verify passed: event chain, state projections and artifact hashes"
+}

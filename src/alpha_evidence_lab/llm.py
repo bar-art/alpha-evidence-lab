@@ -85,6 +85,10 @@ def fetch_pricing(model: str, provider: str | None) -> Pricing | None:
 
 def schema_problem(output: dict[str, Any], schema: dict[str, Any]) -> str:
     """按本项目用到的 schema 子集检查：必填、无额外字段、类型、枚举。返回问题描述或空串。"""
+    if "$defs" in schema:
+        from .factor_tree import schema_issue
+
+        return schema_issue(output, schema, schema)
     properties = schema.get("properties", {})
     missing = [key for key in schema.get("required", []) if key not in output]
     extra = [key for key in output if key not in properties]

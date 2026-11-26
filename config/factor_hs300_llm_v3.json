@@ -1,0 +1,86 @@
+{
+  "question": "At equal trial budgets, do LLM price-volume factors outperform fixed-library and random proposals out of sample?",
+  "budget": 5,
+  "horizon": 5,
+  "dev_sessions": 120,
+  "holdout_sessions": 20,
+  "confirm_start": "2025-08-08",
+  "cost_bps": 7.0,
+  "stamp_duty_schedule": [
+    [
+      "2008-09-19",
+      10.0
+    ],
+    [
+      "2023-08-28",
+      5.0
+    ]
+  ],
+  "seed": 20261126,
+  "alpha": 0.05,
+  "max_holdout_drawdown": 0.25,
+  "minimum_paths": 6,
+  "warmup_episodes": 0,
+  "minimum_symbols": 30,
+  "warmup_sessions": 250,
+  "confirmation_only": false,
+  "max_episodes": null,
+  "llm": {
+    "model": "openai/gpt-5-nano",
+    "release_date": "2025-08-07",
+    "release_source": "https://openai.com/index/introducing-gpt-5/",
+    "max_calls": 6000,
+    "max_cost_usd": 0.5,
+    "temperature": null,
+    "reasoning_effort": "minimal",
+    "provider": "openai/flex"
+  },
+  "max_exit_delay": 10,
+  "max_depth": 4,
+  "max_nodes": 25,
+  "max_lookback": 250,
+  "prompt_version": "v2-tree",
+  "protocol_version": "v3-settlement",
+  "excluded_episodes": [
+    111,
+    112
+  ],
+  "observed_results": [
+    {
+      "protocol": "v1 control",
+      "result": "random/library confirmation p=0.58697509765625; library mean -0.03240278, random -0.03618184; 14 blocks",
+      "artifact": "output/factor-hs300-norm/"
+    },
+    {
+      "protocol": "v1 pilot",
+      "result": "5 calls, all invalid DSL, no holdout reveal, cost $0.000161",
+      "artifact": "output/factor-hs300-llm-pilot/"
+    },
+    {
+      "protocol": "v2 control",
+      "result": "library -0.04074943 on 12/14 blocks, random +0.01762213 on 13/14; insufficient_evidence due to missing exits",
+      "artifact": "output/factor-hs300-norm-v2/"
+    },
+    {
+      "protocol": "v2 pilot",
+      "result": "ep111/112 revealed; library -0.04075514, random +0.02140552, llm +0.00549368; 2 blocks; cost $0.000642; not formal evidence",
+      "artifact": "output/factor-hs300-llm-pilot-v2/"
+    },
+    {
+      "protocol": "v2 engineering first attempt and fixed-winner replay",
+      "result": "first attempt stopped in ep5 before reveal; fixed-v1-winner v2 replay inspected all 14 confirmation blocks; common 12-block results library -0.04074943 and random -0.04024013",
+      "artifact": "output/factor-hs300-norm-v2-incomplete-first-attempt/; ../factor_study_20261126/R5_fixed_v1_winners_replay.json"
+    },
+    {
+      "protocol": "v3 engineering counter audit, interrupted",
+      "result": "First v3 engineering run interrupted after ep115 (110 exploration + 3 confirmation blocks revealed), to correct final-signal entry counters; no changes to scores, seeds, budgets, date eligibility or return rules. Reference outcomes are disclosed; no v3 LLM comparison has run.",
+      "artifact": "output/factor-hs300-norm-v3-incomplete-counter-audit/"
+    },
+    {
+      "protocol": "v3 free control completed before any paid v3 run",
+      "result": "121 rounds (110 exploration, 11 confirmation); all returns known; boundary_unknown=0; library mean confirmation return -0.02176798960, random -0.00962589963; reference p_raw=0.310546875, planned-family adjusted p=0.62109375; no v3 LLM comparison or paid calls",
+      "artifact": "output/factor-hs300-norm-v3/; docs/factor_v3_control_summary.json"
+    }
+  ],
+  "power_reference_sd": 0.08896108640865788
+}

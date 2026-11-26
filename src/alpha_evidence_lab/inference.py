@@ -115,8 +115,9 @@ def paired_gate(
     *,
     cluster_unit: str = "paths",
     warmup_episodes: int = 1,
+    baseline: str = "ordered",
 ) -> dict[str, Any]:
-    if len(arms) < 2 or arms[0] != "ordered" or len(set(arms)) != len(arms):
+    if len(arms) < 2 or arms[0] != baseline or len(set(arms)) != len(arms):
         raise ValueError("必须包含唯一的预注册基线和比较方法")
     if not 0 < alpha < 1 or warmup_episodes < 0:
         raise ValueError("显著性或暖机设置非法")
