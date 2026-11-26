@@ -1,5 +1,7 @@
 # Alpha Evidence Lab
 
+[![tests](https://github.com/bar-art/alpha-evidence-lab/actions/workflows/tests.yml/badge.svg)](https://github.com/bar-art/alpha-evidence-lab/actions/workflows/tests.yml)
+
 **给每一次策略尝试留下证据，让搜索方法接受相同预算的检验。**
 
 这是根据 [OnePunchMonk/AgentQuant](https://github.com/OnePunchMonk/AgentQuant) 核心源码精读后独立实现的新项目。它关注“研究Agent有没有更有效地选择实验”，与已有 `quant-research-lab` 的委员会报告工作流不同。
@@ -72,14 +74,14 @@ alpha-lab research --input examples/synthetic_prices.csv \
 
 示例CSV也是人工数据。真实CSV必须显式包含：`date,open,close,available_at`，时间戳必须带时区，完整日线不能标为收盘前已知。仅支持单资产的一个或多个价格路径；每个文件是一条路径，文件名作为路径ID。不要把同一价格路径改文件名或换搜索随机种子，当成独立市场证据。
 
-真实 A 股路径可由 `a-share-quant-agent` 导出（BaoStock 后复权，停牌日移除，每只股票一个文件）：
+真实 A 股路径可由 [ashare-data-pipeline](https://github.com/bar-art/ashare-data-pipeline) 导出（BaoStock 后复权，停牌日移除，每只股票一个文件）：
 
 ```bash
-cd ../a-share-quant-agent
+cd ../ashare-data-pipeline
 quant-agent export --provider baostock --codes 600000.SH 000001.SZ 600519.SH 300750.SZ 688981.SH \
   --start 2020-01-02 --end 2024-12-31 --target alpha-evidence-lab --output output/alpha_input
 cd ../alpha-evidence-lab
-alpha-lab research --input ../a-share-quant-agent/output/alpha_input/*.csv \
+alpha-lab research --input ../ashare-data-pipeline/output/alpha_input/*.csv \
   --source 'BaoStock后复权日线；同一市场股票相关，不是独立路径' --output output/ashare
 ```
 
@@ -129,14 +131,14 @@ CSV 增加 `is_suspended,up_limit,down_limit,price_limit_exempt`。保留停牌�
 
 支持 `research --bundle ../quant-research-lab/output/tushare_bundle --output output/tushare_study`。导入器验证 `research_bundle_v1` 清单、路径和 CSV 哈希，并将清单哈希纳入数据身份；不得同时传入 `--input` 或 `--source`。同一市场的股票仍按原有时间簇规则计算统计证据，数据包不证明路径独立或历史股票池完整。
 
-当前仅接受 `close_assumed` 可得时间策略；`next_open` 延迟包明确拒绝，不静默改动时间戳。三个项目并列放置时，可用 quant-research-lab 的 `scripts/run_open_data.sh` 从 a-share-quant-agent 的缓存生成共同数据包并运行两个项目（可选，见其 `docs/open_data.md`）。用 6 只股票、2020–2024 的真实 BaoStock 缓存做过端到端验收：random 和 memory 均未通过增量证据门槛。
+当前仅接受 `close_assumed` 可得时间策略；`next_open` 延迟包明确拒绝，不静默改动时间戳。三个项目并列放置时，可用 quant-research-lab 的 `scripts/run_open_data.sh` 从 ashare-data-pipeline 的缓存生成共同数据包并运行两个项目（可选，见其 `docs/open_data.md`）。用 6 只股票、2020–2024 的真实 BaoStock 缓存做过端到端验收：random 和 memory 均未通过增量证据门槛。
 
 ### 长样本实测：沪深300权重股 2015-2026（2026-11-26）
 
-数据来自 `a-share-quant-agent` 的 Tushare 本地快照（后复权，保留停牌行）。路径为 2014-12-31 沪深300权重前10，只用起点已知的信息选择；剔除了 2025 年因合并退市、无法形成完整路径的 600837.SH，所以仍有"存续到 2026"的条件。
+数据来自 `ashare-data-pipeline` 的 Tushare 本地快照（后复权，保留停牌行）。路径为 2014-12-31 沪深300权重前10，只用起点已知的信息选择；剔除了 2025 年因合并退市、无法形成完整路径的 600837.SH，所以仍有"存续到 2026"的条件。
 
 ```bash
-alpha-lab research --input ../a-share-quant-agent/output/export_alpha_top10_2015_2026/*.csv \
+alpha-lab research --input ../ashare-data-pipeline/output/export_alpha_top10_2015_2026/*.csv \
   --source '...' --config <config/ashare.json 并设 episodes=32> --output output/ashare-top10-2015-2026
 ```
 
