@@ -147,6 +147,14 @@ def run_factor_study(
             "random_constants": [-2, -1, 1, 2],
             "constant_root": False,
             "duplicate_redraws": 50,
+            "precheck": {
+                "enabled": plan.protocol_version == "v3-settlement",
+                "uses": "development features only; no forward labels",
+                "reject": "coverage <70% or all daily cross-sectional std <=1e-12",
+                "max_redraws_per_slot": 50,
+                "llm": "no precheck; degenerate proposals consume trials",
+                "reason": "qualified random baseline versus measured LLM proposal behavior",
+            },
             "seed_derivation": "sha256(seed,episode,arm)",
         },
         "call_plan": {
@@ -211,6 +219,7 @@ def run_factor_study(
                     max_nodes=plan.max_nodes,
                     max_lookback=plan.max_lookback,
                     settlement=plan.protocol_version == "v3-settlement",
+                    precheck_random=plan.protocol_version == "v3-settlement",
                 )
                 winners[arm] = winner["candidate"]
                 trials.extend(

@@ -120,6 +120,29 @@ def random_factor(
     raise FactorError("Random grammar exhausted its bounded generation attempts")
 
 
+def random_precheck(panel: Panel, factor: Factor, start: int, stop: int) -> str:
+    """No labels/returns: only features dated no later than the development score stop.
+
+    The raw input `ret` is a permitted past price change, never a forward label.
+    """
+    from .factor_dsl import evaluate
+
+    visible = panel.window(0, stop)
+    universe = visible.member & visible.observed
+    values = evaluate(factor, visible.factor_inputs(), universe)[start:stop]
+    mask = universe[start:stop] & np.isfinite(values)
+    denominator = int(universe[start:stop].sum())
+    if not denominator or float(mask.sum() / denominator) < 0.7:
+        return "coverage_below_70_percent"
+    count = mask.sum(axis=1)
+    means = np.where(mask, values, 0).sum(axis=1) / np.maximum(count, 1)
+    spread = np.where(mask, values - means[:, None], 0)
+    std = np.sqrt((spread * spread).sum(axis=1) / np.maximum(count, 1))
+    if not np.any((count >= 2) & (std > 1e-12)):
+        return "constant_cross_section_on_all_development_days"
+    return ""
+
+
 def proposal_schema(aliases: list[str], prompt_version: str = "v1-string") -> dict[str, Any]:
     schema: dict[str, Any] = {
         "type": "object",
@@ -168,6 +191,7 @@ def search_arm(
     max_nodes: int = 25,
     max_lookback: int = 250,
     settlement: bool = False,
+    precheck_random: bool = False,
 ) -> dict[str, Any]:
     if arm not in {"library", "random", "llm"} or (arm == "llm" and client is None):
         raise ValueError("Unknown factor method or missing LLM client")
@@ -185,6 +209,9 @@ def search_arm(
     seen: set[str] = set()
     aliases = {f"e{i + 1}": row for i, row in enumerate(memories)}
     for attempt in range(budget):
+        precheck_error = ""
+        redraw_count = 0
+        rejected: dict[str, int] = {}
         if arm == "llm":
             assert client is not None
             prior = [
@@ -244,10 +271,25 @@ def search_arm(
                 factor = normalize(CLASSIC_EXPRESSIONS[attempt])
             else:
                 factor = random_factor(rng, max_depth, max_nodes, max_lookback)
-                for _ in range(50):
-                    if factor.id not in seen:
-                        break
-                    factor = random_factor(rng, max_depth, max_nodes, max_lookback)
+                if precheck_random:
+                    # One initial draw plus at most 50 redraws, before submission.
+                    for draw in range(51):
+                        precheck_error = (
+                            "duplicate"
+                            if factor.id in seen
+                            else random_precheck(development, factor, start, stop)
+                        )
+                        redraw_count = draw
+                        if not precheck_error:
+                            break
+                        rejected[precheck_error] = rejected.get(precheck_error, 0) + 1
+                        if draw < 50:
+                            factor = random_factor(rng, max_depth, max_nodes, max_lookback)
+                else:
+                    for _ in range(50):
+                        if factor.id not in seen:
+                            break
+                        factor = random_factor(rng, max_depth, max_nodes, max_lookback)
             idea = {
                 "expression": factor.expression,
                 "hypothesis": "Pre-registered library"
@@ -259,8 +301,16 @@ def search_arm(
         expression = str(idea.get("expression", ""))
         candidate = "invalid_" + digest(expression)[:12]
         payload: dict[str, Any] = {"proposal": idea}
+        if arm == "random" and precheck_random:
+            payload["precheck"] = {
+                "redraws": redraw_count,
+                "rejected": rejected,
+                "uses_labels": False,
+            }
         score: float | None = None
         try:
+            if precheck_error:
+                raise FactorError("Random precheck exhausted 50 redraws: " + precheck_error)
             if arm == "llm" and prompt_version == "v2-tree":
                 from .factor_tree import serialize_tree
 
