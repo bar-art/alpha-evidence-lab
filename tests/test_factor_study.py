@@ -188,3 +188,54 @@ def test_pilot_preserves_global_episode_ids_and_requires_pricing(tmp_path, monke
     with pytest.raises(LlmBudgetError, match="no paid"):
         run_factor_study(plan, p, tmp_path / "blocked")
     assert not (tmp_path / "blocked").exists()
+
+
+def test_v2_tree_end_to_end_and_all_missing_ic_summary(tmp_path):
+    from alpha_evidence_lab.factor_arms import CLASSIC_EXPRESSIONS
+    from alpha_evidence_lab.factor_tree import expression_tree
+    from alpha_evidence_lab.llm import OpenRouterClient
+    from alpha_evidence_lab.models import LlmSettings
+
+    model = LlmSettings(
+        model="fixture/model",
+        release_date=date(2020, 1, 1),
+        release_source="https://example.invalid",
+    )
+    calls = []
+
+    def transport(body, key):
+        request = json.loads(body["messages"][1]["content"])
+        calls.append(request)
+        index = 5 - request["attempts_remaining"]
+        aliases = request["prior_development_evidence"]
+        idea = {
+            "hypothesis": "h",
+            "tree": expression_tree(CLASSIC_EXPRESSIONS[index]),
+            "failure_conditions": "f",
+            "evidence_ids": [aliases[0]["evidence_id"]] if aliases else ["none"],
+        }
+        return {"choices": [{"message": {"content": json.dumps(idea)}}], "usage": {"cost": 0}}
+
+    client = OpenRouterClient(
+        model,
+        tmp_path / "cache",
+        1,
+        api_key="fixture",
+        transport=transport,
+        pricing={"prompt": 0.0, "completion": 0.0},
+    )
+    plan = FactorPlan(llm=model, confirm_start=date(2021, 1, 1), max_episodes=2)
+    result = run_factor_study(plan, random_panel(), tmp_path / "run", client=client)
+    export_factor(result, tmp_path / "run")
+    assert len(result["batches"]) == 2 and client.calls == 10
+    assert result["registration"]["prompt_version"] == "v2-tree"
+    assert main(["verify", "--output", str(tmp_path / "run")]) == 0
+    assert all("holdout" not in json.dumps(r) and "S000" not in json.dumps(r) for r in calls)
+    assert calls[5]["prior_development_evidence"]
+    # A report must retain all-missing IC as null, even for externally supplied results.
+    for r in result["results"]:
+        r["metrics"].update(ic_mean=None, ic_observations=0, ic_valid_days=0)
+    report = tmp_path / "missing-report"
+    report.mkdir()
+    export_factor(result, report)
+    assert all(r["mean_test_ic"] is None and r["ic_observations"] == 0 for r in result["summary"])

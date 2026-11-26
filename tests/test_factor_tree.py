@@ -157,3 +157,46 @@ def test_shared_limits_ignore_only_outer_rank_depth():
     for _ in range(500):
         f = random_factor(rng)
         assert f == bounded_factor(serialize_tree(expression_tree(f.expression)))
+
+
+def test_ten_independently_written_trees_match_classics():
+    def f(name, field, window):
+        return {"fn": name, "args": [{"field": field}], "window": window}
+
+    def neg(tree):
+        return {"op": "neg", "args": [tree]}
+
+    trees = [
+        neg(f("pct_change", "close", 5)),
+        neg(f("ts_std", "ret", 20)),
+        {
+            "op": "sub",
+            "args": [
+                {"op": "div", "args": [f("delay", "close", 20), f("delay", "close", 120)]},
+                {"const": 1},
+            ],
+        },
+        {"op": "div", "args": [neg(f("ts_mean", "volume", 20)), f("ts_mean", "volume", 120)]},
+        neg({"fn": "ts_corr", "args": [{"field": "ret"}, {"field": "volume"}], "window": 20}),
+        neg(
+            {
+                "fn": "ts_mean",
+                "args": [
+                    {
+                        "op": "div",
+                        "args": [
+                            {"op": "sub", "args": [{"field": "high"}, {"field": "low"}]},
+                            {"field": "close"},
+                        ],
+                    }
+                ],
+                "window": 20,
+            }
+        ),
+        neg(f("ts_max", "ret", 20)),
+        {"op": "div", "args": [{"field": "close"}, f("ts_max", "high", 120)]},
+        f("pct_change", "close", 20),
+        neg(f("ts_std", "ret", 60)),
+    ]
+    for tree, expected in zip(trees, CLASSIC_EXPRESSIONS, strict=True):
+        assert normalize(serialize_tree(tree)) == normalize(expected)
