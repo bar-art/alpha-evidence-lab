@@ -48,7 +48,7 @@ open output/my-study/report.html
 alpha-lab verify --output output/my-study
 ```
 
-已生成的演示在 `output/final/report.html`。每次新研究必须使用新目录，防止覆盖已揭晓实验。默认演示完全离线，不需要API密钥，不访问海外行情。
+每次新研究必须使用新目录，防止覆盖已揭晓实验。默认演示完全离线，不需要API密钥，不访问海外行情。
 
 新机器安装：
 
@@ -129,7 +129,7 @@ CSV 增加 `is_suspended,up_limit,down_limit,price_limit_exempt`。保留停牌�
 
 支持 `research --bundle ../quant-research-lab/output/tushare_bundle --output output/tushare_study`。导入器验证 `research_bundle_v1` 清单、路径和 CSV 哈希，并将清单哈希纳入数据身份；不得同时传入 `--input` 或 `--source`。同一市场的股票仍按原有时间簇规则计算统计证据，数据包不证明路径独立或历史股票池完整。
 
-当前仅接受 `close_assumed` 可得时间策略；`next_open` 延迟包明确拒绝，不静默改动时间戳。当前默认使用免费 BaoStock 数据，运行相邻 quant 项目的 `bash scripts/run_open_data.sh` 可生成共同数据包并运行两个项目，详见其 `docs/open_data.md`。原 Tushare 接口已按用户选择弃用。2026-11-25 已用真实 BaoStock 缓存完成端到端研究与审计校验；此次 alpha 的 random 和 memory 均未通过增量证据门槛。
+当前仅接受 `close_assumed` 可得时间策略；`next_open` 延迟包明确拒绝，不静默改动时间戳。三个项目并列放置时，可用 quant-research-lab 的 `scripts/run_open_data.sh` 从 a-share-quant-agent 的缓存生成共同数据包并运行两个项目（可选，见其 `docs/open_data.md`）。用 6 只股票、2020–2024 的真实 BaoStock 缓存做过端到端验收：random 和 memory 均未通过增量证据门槛。
 
 ### 长样本实测：沪深300权重股 2015-2026（2026-11-26）
 

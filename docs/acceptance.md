@@ -31,11 +31,12 @@
 
 ## 交付物
 
+运行 `alpha-lab demo --output output/final` 生成以下文件（输出目录不提交到仓库）：
+
 - `output/final/report.html`：最终中文报告。
 - `output/final/registration.json`：搜索前的配置/数据/代码指纹。
 - `output/final/audit.sqlite`：尝试、冻结、揭晓与事件链。
 - `output/final/attempts.csv`、`holdout_results.csv`、`study.json`、`checkpoint.json`。
-- `output/verification.txt`：检查原始日志。
 - `output/report-preview.png`：独立临时Chrome配置渲染并查看的排版截图，表格与文字未发现溢出。
 
 ## 未完成的功能
