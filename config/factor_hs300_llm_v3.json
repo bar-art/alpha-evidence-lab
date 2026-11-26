@@ -75,6 +75,11 @@
       "protocol": "v3 engineering counter audit, interrupted",
       "result": "First v3 engineering run interrupted after ep115 (110 exploration + 3 confirmation blocks revealed), to correct final-signal entry counters; no changes to scores, seeds, budgets, date eligibility or return rules. Reference outcomes are disclosed; no v3 LLM comparison has run.",
       "artifact": "output/factor-hs300-norm-v3-incomplete-counter-audit/"
+    },
+    {
+      "protocol": "v3 free control completed before any paid v3 run",
+      "result": "121 rounds (110 exploration, 11 confirmation); all returns known; boundary_unknown=0; library mean confirmation return -0.02176798960, random -0.00962589963; reference p_raw=0.310546875, planned-family adjusted p=0.62109375; no v3 LLM comparison or paid calls",
+      "artifact": "output/factor-hs300-norm-v3/; docs/factor_v3_control_summary.json"
     }
   ],
   "power_reference_sd": 0.08896108640865788

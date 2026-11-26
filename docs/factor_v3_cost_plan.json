@@ -1,0 +1,55 @@
+{
+  "protocol": "v3-settlement",
+  "status": "S5 planning only; no paid authorization or calls",
+  "excluded_episodes": [
+    0,
+    111,
+    112,
+    124
+  ],
+  "pilot_exclusions": [
+    111,
+    112
+  ],
+  "scenarios": [
+    {
+      "scope": "all_exploration_and_confirmation",
+      "rounds": 121,
+      "logical_proposals": 605,
+      "worst_case_calls": 5445,
+      "estimated_mean_prompt_tokens": 16006.000000000005,
+      "estimated_cost_usd_with_memory_growth": 0.2632778500000001,
+      "naive_cost_usd_ignoring_memory_growth": 0.038841
+    },
+    {
+      "scope": "confirmation_only_different_scope",
+      "rounds": 11,
+      "logical_proposals": 55,
+      "worst_case_calls": 495,
+      "estimated_mean_prompt_tokens": 2289.0000000000005,
+      "estimated_cost_usd_with_memory_growth": 0.005073475000000001,
+      "naive_cost_usd_ignoring_memory_growth": 0.0035310000000000003
+    }
+  ],
+  "historical_pricing_per_token": {
+    "prompt": 2.5e-08,
+    "completion": 2e-07
+  },
+  "pricing_source": "observed R6 v2 pilot; verify again only after future paid authorization",
+  "calibration": {
+    "first_round_mean_prompt_tokens": 1042.0,
+    "extra_tokens_per_memory_record": 49.88000000000002,
+    "mean_completion_tokens": 175.1
+  },
+  "formula": "mean prompt = 1042 + 49.88 * 5*(rounds-1)/2; cost = 5*rounds*(mean_prompt*2.5e-8 + 175.1*2e-7)",
+  "suggested_future_hard_cap_usd": 0.5,
+  "current_configured_full_cap_usd": 0.3,
+  "approved_paid_cap_usd": null,
+  "paid_calls_this_round": 0,
+  "caveats": [
+    "Two-round memory slope is approximate and conflates within-round feedback changes.",
+    "V3 proposals and expression lengths may differ; retry costs and pricing can change.",
+    "Worst-case calls include two repairs and two filter retries, not a dollar guarantee.",
+    "Hitting a future approved cap stops the run; no automatic top-up or restart."
+  ]
+}
