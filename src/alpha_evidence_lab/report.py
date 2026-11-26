@@ -146,10 +146,26 @@ def export_factor(result: dict[str, Any], output: Path) -> None:
                 "method": arm,
                 "confirmation_rounds": len(held),
                 "mean_test_return": sum(r["return"] for r in held) / len(held) if held else None,
-                "mean_test_ic": sum(
-                    r["metrics"]["ic_mean"] for r in held if r["metrics"]["ic_mean"] is not None
-                )
-                / max(1, sum(r["metrics"]["ic_mean"] is not None for r in held)),
+                "mean_test_ic": (
+                    sum(
+                        r["metrics"]["ic_mean"] * r["metrics"]["ic_observations"]
+                        for r in held
+                        if r["metrics"].get("ic_mean") is not None
+                    )
+                    / sum(
+                        r["metrics"]["ic_observations"]
+                        for r in held
+                        if r["metrics"].get("ic_mean") is not None
+                    )
+                    if any(
+                        r["metrics"].get("ic_mean") is not None
+                        and r["metrics"].get("ic_observations", 0)
+                        for r in held
+                    )
+                    else None
+                ),
+                "ic_observations": sum(r["metrics"].get("ic_observations", 0) for r in held),
+                "ic_valid_days": sum(r["metrics"].get("ic_valid_days", 0) for r in held),
                 "trials": len(trials),
                 "failure_rate": len(failed) / len(trials) if trials else None,
                 "duplicate_rate": sum("Duplicate" in r["payload"].get("error", "") for r in trials)

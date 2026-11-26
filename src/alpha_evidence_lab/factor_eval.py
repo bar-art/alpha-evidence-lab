@@ -276,6 +276,9 @@ def evaluate_factor(
     ic = rank_ic(values, labels["returns"], eligible, minimum)
     # Unknown labels must not remove individual losses from a day's correlation.
     ic[np.any(eligible & labels["boundary_unknown"], axis=1)] = np.nan
+    statistics = ic_statistics(ic, start, stop, horizon)
+    if statistics["ic_observations"] == 0:
+        raise ValueError("No valid non-overlapping IC observations")
     metrics = portfolio_metrics(
         panel,
         values,
@@ -301,7 +304,14 @@ def evaluate_factor(
     }
     return {
         **metrics,
-        **ic_statistics(ic, start, stop, horizon),
+        **statistics,
+        "ic_valid_days": int(np.isfinite(ic[start:stop]).sum()),
+        "counter_interval": {
+            "start_inclusive": str(panel.dates[start]),
+            "stop_exclusive_index": stop,
+            "start_index": start,
+            "scope": "scoring_period_only",
+        },
         "coverage": coverage,
         "daily_ic": [float(x) if np.isfinite(x) else None for x in ic[start:stop]],
         "exclusions": exclusions,

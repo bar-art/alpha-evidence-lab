@@ -163,3 +163,21 @@ def test_delayed_boundary_unknown_not_dropped_and_future_fenced():
     assert first == portfolio_metrics(
         p, values, after["eligible"], 0, 1, 2, 0, minimum=3, boundary=8
     )
+
+
+def test_scoring_counters_exclude_warmup_and_missing_ic_is_invalid():
+    from alpha_evidence_lab.factor_dsl import parse
+    from alpha_evidence_lab.factor_eval import evaluate_factor
+
+    p = panel(days=30, stocks=5)
+    p.up_limit[1, 0] = p.fields["open"][1, 0]  # warmup only
+    result = evaluate_factor(p, parse("cs_rank(close)"), 5, 15, horizon=2, minimum=3)
+    assert result["exclusions"]["entry_limit_up"] == 0
+    assert result["counter_interval"]["scope"] == "scoring_period_only"
+    assert result["ic_observations"] == 5 and result["ic_valid_days"] == 10
+    assert ic_statistics(np.full(10, np.nan), 0, 10, 2)["ic_mean"] is None
+    with pytest.raises(ValueError, match="No valid.*IC"):
+        evaluate_factor(panel(days=30, stocks=1), parse("close"), 5, 15, minimum=3)
+    p.suspended[:] = True
+    with pytest.raises(ValueError, match="coverage"):
+        evaluate_factor(p, parse("close"), 5, 15, minimum=3)
