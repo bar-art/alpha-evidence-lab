@@ -9,7 +9,7 @@ from .factor_arms import CLASSIC_EXPRESSIONS, normalize, search_arm
 from .factor_eval import evaluate_factor
 from .inference import paired_gate
 from .ledger import Ledger
-from .llm import MAX_FLAG_RETRIES, MAX_REPAIRS, OpenRouterClient
+from .llm import MAX_FLAG_RETRIES, MAX_REPAIRS, LlmBudgetError, OpenRouterClient, fetch_pricing
 from .models import FactorPlan, canonical, digest
 from .panel import Panel
 from .study import source_digest
@@ -31,7 +31,7 @@ def episodes(panel: Panel, plan: FactorPlan) -> list[dict[str, Any]]:
         dev_stop = test_start - plan.horizon
         result.append(
             {
-                "episode": len(result),
+                "episode": (test_start - first) // plan.holdout_sessions,
                 "warm_start": dev_stop - plan.dev_sessions - plan.warmup_sessions,
                 "dev_start": dev_stop - plan.dev_sessions,
                 "dev_stop": dev_stop,
@@ -74,6 +74,15 @@ def run_factor_study(
         raise ValueError("Output must be a new directory")
     schedule = episodes(panel, plan)
     logical = len(schedule) * plan.budget if plan.llm else 0
+    if plan.llm and client is None:
+        pricing = fetch_pricing(plan.llm.model, plan.llm.provider)
+        if pricing is None or any(
+            not np.isfinite(value) or value < 0 for value in pricing.values()
+        ):
+            raise LlmBudgetError("Trusted token pricing unavailable: no paid factor request sent")
+        client = OpenRouterClient(
+            plan.llm, llm_cache or output / "llm_cache.jsonl", plan.seed, pricing=pricing
+        )
     registration: dict[str, Any] = {
         "mode": "factor",
         "plan": plan.model_dump(mode="json"),
@@ -93,6 +102,7 @@ def run_factor_study(
             "logical_proposals": logical,
             "worst_case_calls": logical * (1 + MAX_REPAIRS) * (1 + MAX_FLAG_RETRIES),
             "max_cost_usd": plan.llm.max_cost_usd if plan.llm else 0,
+            "pricing_usd_per_token": client.pricing if client else None,
         },
         "confirm_rule": (
             "test_start strictly after confirm_start; primary gate uses confirmation only"
@@ -116,8 +126,6 @@ def run_factor_study(
         budget=plan.budget,
         arms=plan.arms,
     )
-    if plan.llm and client is None:
-        client = OpenRouterClient(plan.llm, llm_cache or output / "llm_cache.jsonl", plan.seed)
     rows: list[dict[str, Any]] = []
     trials: list[dict[str, Any]] = []
     batches: list[dict[str, Any]] = []
@@ -206,7 +214,7 @@ def run_factor_study(
                             "score": record["score"],
                         }
                     )
-            print(f"Factor round {number + 1}/{len(schedule)}: {ep['phase']}", flush=True)
+            print(f"Factor round {len(batches)}/{len(schedule)}: {ep['phase']}", flush=True)
     except (ValueError, OSError) as error:
         (output / "incomplete.json").write_text(
             canonical(
@@ -241,6 +249,8 @@ def run_factor_study(
                 "short availability, borrow fees and margin are not modeled."
             ),
             "Drawdown uses open-marked equity, not intraday extrema.",
+            "Each block resets NAV to 1; mean block returns are not a continuous portfolio.",
+            "Random expressions have depth cap 4; LLM expressions have DSL depth cap 8.",
             "Confirmation sample is short; non-overlap does not prove independent market blocks.",
             (
                 "Model publication cutoff reduces historical "

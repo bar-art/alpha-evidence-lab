@@ -216,7 +216,11 @@ def search_arm(
             ):
                 raise FactorError("Proposal exceeds protocol text limits")
             cited = idea.get("evidence_ids", [])
-            if any(item != "none" and item not in aliases for item in cited):
+            if arm == "llm" and (not cited or (not aliases and cited != ["none"])):
+                raise FactorError("Evidence protocol requires explicit none or a supplied alias")
+            if any(item not in aliases for item in cited if item != "none") or (
+                aliases and "none" in cited
+            ):
                 raise FactorError("Unknown anonymous evidence reference")
             factor = normalize(expression)
             candidate = factor.id

@@ -167,3 +167,24 @@ def test_development_score_does_not_read_sealed_prices(tmp_path):
     assert [(r["candidate"], r["score"]) for r in a["trials"]] == [
         (r["candidate"], r["score"]) for r in b["trials"]
     ]
+
+
+def test_pilot_preserves_global_episode_ids_and_requires_pricing(tmp_path, monkeypatch):
+    from alpha_evidence_lab.llm import LlmBudgetError
+    from alpha_evidence_lab.models import LlmSettings
+
+    p = random_panel()
+    base = FactorPlan(confirm_start=p.dates[395].astype(object))
+    full = episodes(p, base)
+    pilot = episodes(p, base.model_copy(update={"confirmation_only": True, "max_episodes": 1}))
+    assert pilot[0]["episode"] == next(e["episode"] for e in full if e["phase"] == "confirmation")
+    model = LlmSettings(
+        model="fixture/model",
+        release_date=date(2019, 1, 1),
+        release_source="https://example.invalid",
+    )
+    plan = base.model_copy(update={"llm": model, "max_episodes": 1})
+    monkeypatch.setattr("alpha_evidence_lab.factor_study.fetch_pricing", lambda *args: None)
+    with pytest.raises(LlmBudgetError, match="no paid"):
+        run_factor_study(plan, p, tmp_path / "blocked")
+    assert not (tmp_path / "blocked").exists()
