@@ -35,6 +35,7 @@ def exit_labels(
     t = np.arange(len(panel.dates))[:, None]
     entry = t + 1
     nominal = entry + horizon
+    entry_inside = entry < min(entry_stop if entry_stop is not None else limit, limit)
     entry_index = np.minimum(entry, max(0, limit - 1))[:, 0]
     known = panel.limit_exempt | (np.isfinite(panel.up_limit) & np.isfinite(panel.down_limit))
     up = ~panel.limit_exempt & (opening >= panel.up_limit - 1e-8)
@@ -43,7 +44,7 @@ def exit_labels(
     allowed = (
         panel.member
         & panel.observed
-        & (entry < min(entry_stop if entry_stop is not None else limit, limit))
+        & entry_inside
         & panel.observed[entry_index]
         & known[entry_index]
         & ~up[entry_index]
@@ -82,11 +83,11 @@ def exit_labels(
         "exit_unresolved": unresolved,
         "boundary_unknown": boundary_unknown,
         "nominal_inside": np.broadcast_to(nominal < limit, shape),
-        "entry_limit_up": (panel.member & panel.observed & (entry < limit) & up[entry_index]),
+        "entry_limit_up": (panel.member & panel.observed & entry_inside & up[entry_index]),
         "entry_unobserved": (
-            panel.member & panel.observed & (entry < limit) & ~panel.observed[entry_index]
+            panel.member & panel.observed & entry_inside & ~panel.observed[entry_index]
         ),
-        "unknown_limits": (panel.member & panel.observed & (entry < limit) & ~known[entry_index]),
+        "unknown_limits": (panel.member & panel.observed & entry_inside & ~known[entry_index]),
     }
 
 

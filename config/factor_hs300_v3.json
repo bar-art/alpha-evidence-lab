@@ -61,6 +61,11 @@
       "protocol": "v2 engineering first attempt and fixed-winner replay",
       "result": "first attempt stopped in ep5 before reveal; fixed-v1-winner v2 replay inspected all 14 confirmation blocks; common 12-block results library -0.04074943 and random -0.04024013",
       "artifact": "output/factor-hs300-norm-v2-incomplete-first-attempt/; ../factor_study_20261126/R5_fixed_v1_winners_replay.json"
+    },
+    {
+      "protocol": "v3 engineering counter audit, interrupted",
+      "result": "First v3 engineering run interrupted after ep115 (110 exploration + 3 confirmation blocks revealed), to correct final-signal entry counters; no changes to scores, seeds, budgets, date eligibility or return rules. Reference outcomes are disclosed; no v3 LLM comparison has run.",
+      "artifact": "output/factor-hs300-norm-v3-incomplete-counter-audit/"
     }
   ],
   "power_reference_sd": 0.08896108640865788

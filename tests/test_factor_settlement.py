@@ -208,3 +208,17 @@ def test_v3_unexpected_unknown_is_an_error_not_a_missing_return(monkeypatch):
     monkeypatch.setattr(module, "exit_labels", broken)
     with pytest.raises(SettlementError, match="Unexpected unknown"):
         evaluate_factor(p, parse("close"), 30, 50, settlement=True, label_stop=65)
+
+
+def test_calendar_ineligible_final_signal_entry_counters_ignore_settlement_prices():
+    p = panel(days=40, stocks=5)
+    before = exit_labels(p, 5, boundary=35, entry_stop=20)
+    p.up_limit[20] = p.fields["open"][20]
+    after = exit_labels(p, 5, boundary=35, entry_stop=20)
+    for key in ["entry_limit_up", "entry_unobserved", "unknown_limits"]:
+        np.testing.assert_equal(before[key][:20], after[key][:20])
+        assert not after[key][19].any()
+    p.suspended[20] = True
+    after = exit_labels(p, 5, boundary=35, entry_stop=20)
+    for key in ["entry_limit_up", "entry_unobserved", "unknown_limits"]:
+        assert not after[key][19].any()
