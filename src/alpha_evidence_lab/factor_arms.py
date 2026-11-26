@@ -167,11 +167,18 @@ def search_arm(
     max_depth: int = 4,
     max_nodes: int = 25,
     max_lookback: int = 250,
+    settlement: bool = False,
 ) -> dict[str, Any]:
     if arm not in {"library", "random", "llm"} or (arm == "llm" and client is None):
         raise ValueError("Unknown factor method or missing LLM client")
     labels = tuple(
-        exit_labels(development, horizon, max_exit_delay=max_exit_delay, short=short)
+        exit_labels(
+            development,
+            horizon,
+            max_exit_delay=max_exit_delay,
+            short=short,
+            entry_stop=stop if settlement else None,
+        )
         for short in (False, True)
     )
     rng = np.random.default_rng(seed)
@@ -296,6 +303,7 @@ def search_arm(
                 minimum=minimum,
                 max_exit_delay=max_exit_delay,
                 _labels=labels,
+                settlement=settlement,
             )
             if metrics["icir"] is None:
                 raise FactorError("ICIR undefined: insufficient non-overlapping IC variation")

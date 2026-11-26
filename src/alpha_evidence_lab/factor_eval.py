@@ -9,6 +9,10 @@ from .factor_dsl import _cs_rank
 from .panel import Panel
 
 
+class SettlementError(ValueError):
+    """A v3 date fence failed to contain an entered position; stop the study."""
+
+
 def exit_labels(
     panel: Panel,
     horizon: int,
@@ -16,6 +20,7 @@ def exit_labels(
     max_exit_delay: int = 10,
     boundary: int | None = None,
     short: bool = False,
+    entry_stop: int | None = None,
 ) -> dict[str, np.ndarray]:
     """Resolve without crossing the exclusive fence; never filter entry by future exits.
 
@@ -38,7 +43,7 @@ def exit_labels(
     allowed = (
         panel.member
         & panel.observed
-        & (entry < limit)
+        & (entry < min(entry_stop if entry_stop is not None else limit, limit))
         & panel.observed[entry_index]
         & known[entry_index]
         & ~up[entry_index]
@@ -173,6 +178,7 @@ def portfolio_metrics(
     available = start + 1
     opening, close = panel.fields["open"], panel.fields["close"]
     tax_rates = np.array([stamp_duty_rate(stamp_duty, d.astype(object)) for d in panel.dates])
+    entry_days = []
     for t in range(start, stop, horizon):
         entry, nominal = t + 1, t + 1 + horizon
         if nominal >= limit or entry < available:
@@ -191,6 +197,7 @@ def portfolio_metrics(
         )
         if unknown:
             break
+        entry_days.append(entry)
         last = max(int(labels["exit_day"][t, names].max()) for labels, names, _ in selected)
         delayed += sum(
             int((labels["exit_day"][t, names] > nominal).sum()) for labels, names, _ in selected
@@ -232,6 +239,7 @@ def portfolio_metrics(
         else None,
         "nav": nav,
         "period_returns": net,
+        "entry_days": entry_days,
         "portfolio_periods": len(net),
         "excluded_rebalance_days": exclusions,
         "delayed_positions": delayed,
@@ -253,6 +261,7 @@ def evaluate_factor(
     minimum: int = 30,
     max_exit_delay: int = 10,
     _labels: tuple[dict[str, np.ndarray], ...] | None = None,
+    settlement: bool = False,
 ) -> dict[str, Any]:
     from .factor_dsl import evaluate
 
@@ -262,8 +271,14 @@ def evaluate_factor(
         or not 0 <= cost_bps <= 100
     ):
         raise ValueError("Invalid factor assessment interval or cost")
+    # Factor inputs end at the scoring fence. Settlement/gap prices are exit-only:
+    # even unused factor values must not be computed in these periods.
+    scoring = panel.window(0, stop) if settlement else panel
     universe = panel.member & panel.observed
-    values = evaluate(factor, panel.factor_inputs(), universe)
+    values = np.full(panel.fields["open"].shape, np.nan)
+    values[: len(scoring.dates)] = evaluate(
+        factor, scoring.factor_inputs(), universe[: len(scoring.dates)]
+    )
     denominator = int(universe[start:stop].sum())
     coverage = (
         float((universe[start:stop] & np.isfinite(values[start:stop])).sum() / denominator)
@@ -274,9 +289,21 @@ def evaluate_factor(
         raise ValueError(f"Factor coverage below 70%: {coverage:.4f}")
     boundary = min(label_stop if label_stop is not None else len(panel.dates), len(panel.dates))
     sides = _labels or tuple(
-        exit_labels(panel, horizon, max_exit_delay=max_exit_delay, boundary=boundary, short=x)
+        exit_labels(
+            panel,
+            horizon,
+            max_exit_delay=max_exit_delay,
+            boundary=boundary,
+            short=x,
+            entry_stop=stop if settlement else None,
+        )
         for x in (False, True)
     )
+    if settlement:
+        if boundary < stop + horizon + max_exit_delay:
+            raise SettlementError("Full exit-only settlement period required")
+        if any(s["boundary_unknown"][start:stop].any() for s in sides):
+            raise SettlementError("Unexpected unknown exit inside complete settlement fence")
     labels = sides[0]
     eligible = labels["eligible"]
     ic = rank_ic(values, labels["returns"], eligible, minimum)
@@ -323,5 +350,9 @@ def evaluate_factor(
         "daily_ic": [float(x) if np.isfinite(x) else None for x in ic[start:stop]],
         "exclusions": exclusions,
         "label_stop_exclusive": boundary,
-        "metric_kind": "delayed_exit_long_short_gross_2_open_marked_research",
+        "metric_kind": "settlement_long_short_gross_2_open_marked_research"
+        if settlement
+        else "delayed_exit_long_short_gross_2_open_marked_research",
+        "settlement_sessions": horizon + max_exit_delay if settlement else 0,
+        "entry_stop_exclusive": stop if settlement else None,
     }

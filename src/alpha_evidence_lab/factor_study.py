@@ -7,7 +7,7 @@ import numpy as np
 
 from .factor_arms import CLASSIC_EXPRESSIONS, normalize, search_arm
 from .factor_dsl import FIELDS, WINDOWS
-from .factor_eval import evaluate_factor
+from .factor_eval import SettlementError, evaluate_factor
 from .factor_tree import FUNCTIONS
 from .inference import paired_gate
 from .ledger import Ledger
@@ -17,12 +17,37 @@ from .panel import Panel
 from .study import source_digest
 
 
-def episodes(panel: Panel, plan: FactorPlan) -> list[dict[str, Any]]:
+def episode_calendar(
+    panel: Panel, plan: FactorPlan
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    # Keep the original date grid AND IDs: widening the gap must not move ep111/112.
     first = plan.warmup_sessions + plan.dev_sessions + plan.horizon
     result: list[dict[str, Any]] = []
+    excluded: list[dict[str, Any]] = []
     for test_start in range(
         first, len(panel.dates) - plan.holdout_sessions + 1, plan.holdout_sessions
     ):
+        number = (test_start - first) // plan.holdout_sessions
+        test_stop = test_start + plan.holdout_sessions
+        dev_stop = test_start - plan.gap_sessions
+        warm_start = dev_stop - plan.dev_sessions - plan.warmup_sessions
+        settlement_stop = test_stop + plan.settlement_sessions
+        base = {
+            "episode": number,
+            "test_start": test_start,
+            "test_stop": test_stop,
+            "test_start_date": str(panel.dates[test_start]),
+            "test_end_date": str(panel.dates[test_stop - 1]),
+        }
+        if warm_start < 0 or settlement_stop > len(panel.dates):
+            excluded.append(
+                {
+                    **base,
+                    "reason": "insufficient_warmup" if warm_start < 0 else "incomplete_settlement",
+                    "required_settlement_stop": settlement_stop,
+                }
+            )
+            continue
         phase = (
             "confirmation"
             if panel.dates[test_start] > np.datetime64(plan.confirm_start)
@@ -30,20 +55,23 @@ def episodes(panel: Panel, plan: FactorPlan) -> list[dict[str, Any]]:
         )
         if plan.confirmation_only and phase != "confirmation":
             continue
-        dev_stop = test_start - plan.horizon
         result.append(
             {
-                "episode": (test_start - first) // plan.holdout_sessions,
-                "warm_start": dev_stop - plan.dev_sessions - plan.warmup_sessions,
+                **base,
+                "warm_start": warm_start,
                 "dev_start": dev_stop - plan.dev_sessions,
                 "dev_stop": dev_stop,
-                "test_start": test_start,
-                "test_stop": test_start + plan.holdout_sessions,
+                "settlement_stop": settlement_stop,
                 "phase": phase,
             }
         )
         if plan.max_episodes is not None and len(result) >= plan.max_episodes:
             break
+    return result, excluded
+
+
+def episodes(panel: Panel, plan: FactorPlan) -> list[dict[str, Any]]:
+    result, _ = episode_calendar(panel, plan)
     if not result:
         raise ValueError("No complete factor episodes in the requested sample")
     return result
@@ -87,7 +115,16 @@ def run_factor_study(
         )
     registration: dict[str, Any] = {
         "mode": "factor",
-        "protocol_version": "v2-delayed-exit",
+        "protocol_version": plan.protocol_version,
+        "date_exclusions": episode_calendar(panel, plan)[1],
+        "settlement_rule": {
+            "sessions": plan.settlement_sessions,
+            "gap": plan.gap_sessions,
+            "entry": "entry open strictly before scoring stop; final close signal omitted",
+            "use": "exit/valuation only; no settlement factor values or new entries",
+            "overlap": "previous settlement overlaps next test; development-only memory and "
+            "selection ignore all holdout reveals",
+        },
         "prompt_version": plan.prompt_version,
         "plan": plan.model_dump(mode="json"),
         "data_hash": panel.sha256,
@@ -173,6 +210,7 @@ def run_factor_study(
                     max_depth=plan.max_depth,
                     max_nodes=plan.max_nodes,
                     max_lookback=plan.max_lookback,
+                    settlement=plan.protocol_version == "v3-settlement",
                 )
                 winners[arm] = winner["candidate"]
                 trials.extend(
@@ -181,7 +219,9 @@ def run_factor_study(
                 )
             commitment = ledger.freeze(batch, winners, plan.budget)
             frozen = ledger.frozen_winners(batch)
-            test = panel.window(ep["test_start"] - plan.warmup_sessions, ep["test_stop"])
+            # A prior reveal may have read into the next test's dates. It never enters
+            # development memories, seeds, candidate generation or next search inputs.
+            test = panel.window(ep["test_start"] - plan.warmup_sessions, ep["settlement_stop"])
             reveals = {}
             for arm, candidate in frozen.items():
                 winner = next(
@@ -195,14 +235,17 @@ def run_factor_study(
                         test,
                         normalize(expression),
                         plan.warmup_sessions,
-                        len(test.dates),
+                        plan.warmup_sessions + plan.holdout_sessions,
                         horizon=plan.horizon,
                         cost_bps=plan.cost_bps,
                         stamp_duty_schedule=plan.stamp_duty_schedule,
                         minimum=plan.minimum_symbols,
                         max_exit_delay=plan.max_exit_delay,
+                        settlement=plan.protocol_version == "v3-settlement",
                     )
                     status = "ok" if metrics["return"] is not None else "failed"
+                except SettlementError:
+                    raise
                 except ValueError as error:
                     metrics = {"return": None, "drawdown": None, "error": str(error)[:200]}
                     status = "failed"
@@ -218,6 +261,7 @@ def run_factor_study(
                     "drawdown": metrics["drawdown"],
                     "holdout_start": str(panel.dates[ep["test_start"]]),
                     "holdout_end": str(panel.dates[ep["test_stop"] - 1]),
+                    "settlement_end": str(panel.dates[ep["settlement_stop"] - 1]),
                     "metrics": metrics,
                 }
                 rows.append(row)
@@ -280,7 +324,7 @@ def run_factor_study(
             ),
             (
                 "Only price/volume inputs; no point-in-time "
-                "fundamentals; test tail signals without in-block exits are omitted."
+                "fundamentals; final close cannot open a new position in settlement."
             ),
         ],
     }

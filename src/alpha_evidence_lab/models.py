@@ -120,6 +120,16 @@ class Hypothesis(Contract):
 
 
 class FactorPlan(Contract):
+    protocol_version: Literal["v2-delayed-exit", "v3-settlement"] = "v2-delayed-exit"
+
+    @property
+    def settlement_sessions(self) -> int:
+        return self.horizon + self.max_exit_delay if self.protocol_version == "v3-settlement" else 0
+
+    @property
+    def gap_sessions(self) -> int:
+        return self.settlement_sessions or self.horizon
+
     max_depth: int = Field(default=4, ge=1, le=7)
     max_nodes: int = Field(default=25, ge=3, le=50)
     max_lookback: int = Field(default=250, ge=1, le=250)
