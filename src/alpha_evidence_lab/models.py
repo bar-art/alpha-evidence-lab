@@ -120,6 +120,7 @@ class Hypothesis(Contract):
 
 
 class FactorPlan(Contract):
+    prompt_version: Literal["v1-string", "v2-tree"] = "v2-tree"
     max_exit_delay: int = Field(default=10, ge=0, le=30)
     question: str = (
         "At equal trial budgets, do LLM price-volume factors "

@@ -85,6 +85,8 @@ def run_factor_study(
         )
     registration: dict[str, Any] = {
         "mode": "factor",
+        "protocol_version": "v2-delayed-exit",
+        "prompt_version": plan.prompt_version,
         "plan": plan.model_dump(mode="json"),
         "data_hash": panel.sha256,
         "code_hash": source_digest(),
@@ -155,6 +157,7 @@ def run_factor_study(
                     client=client if arm == "llm" else None,
                     minimum=plan.minimum_symbols,
                     max_exit_delay=plan.max_exit_delay,
+                    prompt_version=plan.prompt_version,
                 )
                 winners[arm] = winner["candidate"]
                 trials.extend(
@@ -210,7 +213,9 @@ def run_factor_study(
                 for record in ledger.trials(batch, arm):
                     memories[arm].append(
                         {
-                            "expression": record["payload"]["proposal"]["expression"],
+                            "expression": record["payload"]["proposal"].get(
+                                "expression", "<tree serialization failed>"
+                            ),
                             "status": record["status"],
                             "score": record["score"],
                         }

@@ -109,8 +109,8 @@ def random_factor(rng: np.random.Generator) -> Factor:
     raise ValueError("Random grammar exhausted its bounded generation attempts")
 
 
-def proposal_schema(aliases: list[str]) -> dict[str, Any]:
-    return {
+def proposal_schema(aliases: list[str], prompt_version: str = "v1-string") -> dict[str, Any]:
+    schema: dict[str, Any] = {
         "type": "object",
         "properties": {
             "hypothesis": {"type": "string", "maxLength": 300},
@@ -124,6 +124,15 @@ def proposal_schema(aliases: list[str]) -> dict[str, Any]:
         "required": ["hypothesis", "expression", "failure_conditions", "evidence_ids"],
         "additionalProperties": False,
     }
+
+    if prompt_version == "v2-tree":
+        from .factor_tree import tree_schema
+
+        schema["properties"].pop("expression")
+        schema["properties"]["tree"] = {"$ref": "#/$defs/node"}
+        schema["required"] = ["hypothesis", "tree", "failure_conditions", "evidence_ids"]
+        schema["$defs"] = {"node": tree_schema()}
+    return schema
 
 
 def search_arm(
@@ -143,6 +152,7 @@ def search_arm(
     client: OpenRouterClient | None = None,
     minimum: int = 30,
     max_exit_delay: int = 10,
+    prompt_version: str = "v1-string",
 ) -> dict[str, Any]:
     if arm not in {"library", "random", "llm"} or (arm == "llm" and client is None):
         raise ValueError("Unknown factor method or missing LLM client")
@@ -161,7 +171,9 @@ def search_arm(
             ]
             attempts = [
                 {
-                    "expression": r["payload"]["proposal"]["expression"],
+                    "expression": r["payload"]["proposal"].get(
+                        "expression", "<tree serialization failed>"
+                    ),
                     "status": r["status"],
                     "score": r["score"],
                     "failure": r["payload"].get("error"),
@@ -174,15 +186,26 @@ def search_arm(
                 for r in ledger.trials(batch, arm)
             ]
             # No panel identity, dates, symbols, prices or holdout results enter the prompt.
+            from .factor_tree import EXAMPLES, FUNCTIONS
+
+            language = dict(DSL_SPEC)
+            if prompt_version == "v2-tree":
+                language.update(
+                    function_table=FUNCTIONS,
+                    valid_tree_examples=EXAMPLES,
+                    tree_operators=["add", "sub", "mul", "div", "neg"],
+                    protocol="Return tree, never an expression string",
+                )
             idea = client.complete(
                 SYSTEM,
                 {
-                    "language": DSL_SPEC,
+                    "language": language,
+                    "prompt_version": prompt_version,
                     "prior_development_evidence": prior,
                     "attempts_in_this_round": attempts,
                     "attempts_remaining": budget - attempt,
                 },
-                proposal_schema(list(aliases)),
+                proposal_schema(list(aliases), prompt_version),
                 "factor_proposal",
             )
         else:
@@ -207,6 +230,11 @@ def search_arm(
         payload: dict[str, Any] = {"proposal": idea}
         score: float | None = None
         try:
+            if arm == "llm" and prompt_version == "v2-tree":
+                from .factor_tree import serialize_tree
+
+                expression = serialize_tree(idea["tree"])
+                idea["expression"] = expression
             if any(
                 len(str(idea.get(k, ""))) > limit
                 for k, limit in [
